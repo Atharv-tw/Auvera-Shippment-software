@@ -1,0 +1,26 @@
+# Python / backend
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# Backend runtime data (not source)
+backend/shipping_z.db
+backend/uploads/*
+!backend/uploads/.gitkeep
+.env
+backend/.env
+
+# Node / frontend
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+.env*.local
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.claude/settings.local.json
