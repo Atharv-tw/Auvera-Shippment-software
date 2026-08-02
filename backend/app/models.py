@@ -32,7 +32,8 @@ class User(Base, TimestampMixin):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     name: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(String(20), default="vendor")  # admin | vendor
+    # admin | ceo | shipping_manager | merchant  (legacy: vendor -> read-only)
+    role: Mapped[str] = mapped_column(String(20), default="merchant")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -147,3 +148,29 @@ class TrackerRow(Base, TimestampMixin):
     order_line_id: Mapped[int | None] = mapped_column(ForeignKey("order_lines.id"))
     vendor_order_line_id: Mapped[int | None] = mapped_column(ForeignKey("vendor_order_lines.id"))
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+
+
+# --- field-level change trail --------------------------------------------------
+
+class AuditLog(Base):
+    """One row per field change on a tracker row.
+
+    Captures who set/changed a value and when — for the order-detail columns this
+    answers "who entered these details" across uploads and manual edits. The CEO
+    (and admin) read this back per field via the info button in the field view.
+    """
+
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entity_type: Mapped[str] = mapped_column(String(20), default="tracker")
+    entity_id: Mapped[int] = mapped_column(Integer, index=True)
+    field_key: Mapped[str] = mapped_column(String(64), index=True)
+    field_label: Mapped[str] = mapped_column(String(128))
+    field_class: Mapped[str] = mapped_column(String(20))  # order_detail | operational
+    old_value: Mapped[str | None] = mapped_column(Text)
+    new_value: Mapped[str | None] = mapped_column(Text)
+    action: Mapped[str] = mapped_column(String(20))  # import | manual | edit
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    user_name: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

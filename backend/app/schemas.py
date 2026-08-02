@@ -12,7 +12,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
     name: str
-    role: str = "vendor"
+    role: str = "merchant"
 
 
 class LoginRequest(BaseModel):
@@ -128,6 +128,21 @@ class TrackerRowBulkUpdate(BaseModel):
 
 class TrackerRowCreate(BaseModel):
     fields: dict[str, Any]
+
+
+# --- audit trail ---------------------------------------------------------------
+
+class AuditEntryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    field_key: str
+    field_label: str
+    field_class: str
+    old_value: str | None = None
+    new_value: str | None = None
+    action: str
+    user_name: str | None = None
+    created_at: datetime | None = None
 
 
 # --- upload results ------------------------------------------------------------

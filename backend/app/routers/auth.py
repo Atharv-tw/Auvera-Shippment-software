@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app import permissions
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import User
@@ -16,11 +17,22 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
     # first user becomes admin so a fresh install is bootstrappable
     is_first_user = db.query(User.id).first() is None
+    if is_first_user:
+        role = "admin"
+    else:
+        # admin can only be created via seed / first user; self-registration is
+        # limited to the non-privileged roles
+        if body.role not in permissions.SELF_REGISTER_ROLES:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                f"Role must be one of: {', '.join(permissions.SELF_REGISTER_ROLES)}",
+            )
+        role = body.role
     user = User(
         email=body.email.lower(),
         password_hash=hash_password(body.password),
         name=body.name,
-        role="admin" if is_first_user else body.role,
+        role=role,
     )
     db.add(user)
     db.commit()

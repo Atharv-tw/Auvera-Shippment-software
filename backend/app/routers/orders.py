@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.config import get_settings
 from app.database import get_db
-from app.dependencies import get_current_user, require_admin
+from app.dependencies import get_current_user, require_upload
 from app.models import Order, User, VendorOrder
 from app.schemas import (
     OrderOut,
@@ -23,7 +23,7 @@ settings = get_settings()
 def upload_orders(
     files: list[UploadFile],
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    user: User = Depends(require_upload),
 ):
     """Upload one or more Customer-Order / Vendor-Order .xlsx workbooks.
 
@@ -47,7 +47,7 @@ def upload_orders(
             kind = detect_kind(path, name_hint=name)
             if kind == "vendor":
                 parsed = parse_vendor_order(path)
-                orders, touched, warnings = reconcile.import_vendor_order(db, parsed, name, user.id)
+                orders, touched, warnings = reconcile.import_vendor_order(db, parsed, name, user.id, user.name)
                 results.append(UploadFileResult(
                     filename=name, kind="vendor", status="created",
                     order_ids=[o.id for o in orders], tracker_rows_touched=touched,
@@ -55,7 +55,7 @@ def upload_orders(
                 ))
             else:
                 parsed = parse_customer_order(path)
-                order, touched, warnings = reconcile.import_customer_order(db, parsed, name, user.id)
+                order, touched, warnings = reconcile.import_customer_order(db, parsed, name, user.id, user.name)
                 results.append(UploadFileResult(
                     filename=name, kind="customer", status="created",
                     order_ids=[order.id], tracker_rows_touched=touched,

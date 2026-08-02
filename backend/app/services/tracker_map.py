@@ -75,7 +75,27 @@ TRACKER_COLUMNS: list[dict[str, str]] = [
 COL_BY_KEY: dict[str, str] = {c["key"]: c["col"] for c in TRACKER_COLUMNS}
 TYPE_BY_KEY: dict[str, str] = {c["key"]: c["type"] for c in TRACKER_COLUMNS}
 SOURCE_BY_KEY: dict[str, str] = {c["key"]: c["source"] for c in TRACKER_COLUMNS}
+LABEL_BY_KEY: dict[str, str] = {c["key"]: c["label"] for c in TRACKER_COLUMNS}
 TRACKER_KEYS: list[str] = [c["key"] for c in TRACKER_COLUMNS]
+
+# --- field classes -------------------------------------------------------------
+# "order_detail" columns come from the order paperwork (buyer/vendor) plus the
+# constants/derived values tied to them; "operational" columns are the tracker's
+# own shipment/docs/booking data, blank on import and filled in-app.
+ORDER_DETAIL_SOURCES: frozenset[str] = frozenset({"buyer", "vendor", "const", "calc"})
+OPERATIONAL_SOURCES: frozenset[str] = frozenset({"operational"})
+
+ORDER_DETAIL_KEYS: frozenset[str] = frozenset(
+    c["key"] for c in TRACKER_COLUMNS if c["source"] in ORDER_DETAIL_SOURCES
+)
+OPERATIONAL_KEYS: frozenset[str] = frozenset(
+    c["key"] for c in TRACKER_COLUMNS if c["source"] in OPERATIONAL_SOURCES
+)
+
+
+def field_class(key: str) -> str:
+    """'order_detail' or 'operational' for a tracker column key."""
+    return "operational" if key in OPERATIONAL_KEYS else "order_detail"
 
 # Constants for this operation (Auvera Studio Limited / Roman Originals).
 COMPANY_CODE = "ASL"

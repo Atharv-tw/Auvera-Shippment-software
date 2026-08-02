@@ -14,7 +14,7 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 
 from app.models import Order, OrderLine, TrackerRow, VendorOrder, VendorOrderLine
-from app.services import tracker_map as tm
+from app.services import audit, tracker_map as tm
 
 _LINE_KEYS = [
     "row_index", "order_date", "article", "description", "colour", "style_no",
@@ -50,6 +50,7 @@ def _upsert_tracker(
     side: str,  # "buyer" | "vendor"
     line_id: int | None,
     user_id: int | None,
+    user_name: str | None,
     warnings: list[str],
 ) -> TrackerRow:
     match = tm.match_key(buyer_po, style_no, colour)
@@ -60,6 +61,7 @@ def _upsert_tracker(
             data={}, edited_keys=[], created_by=user_id,
         )
         db.add(row)
+        db.flush()  # obtain row.id for audit entries
     data = dict(row.data or {})
     edited = set(row.edited_keys or [])
     for key, val in fields.items():
@@ -71,6 +73,10 @@ def _upsert_tracker(
         old_val = data.get(key)
         if old_val not in (None, "") and old_val != new_val:
             warnings.append(f"{buyer_po}/{style_no}/{colour}: {key} {old_val!r} -> {new_val!r}")
+        audit.record_change(
+            db, row_id=row.id, key=key, old=old_val, new=new_val,
+            action="import", user_id=user_id, user_name=user_name,
+        )
         data[key] = new_val
     # traceability
     if article and not row.article:
@@ -95,7 +101,10 @@ def _upsert_tracker(
     return row
 
 
-def import_customer_order(db: Session, parsed: dict, filename: str, user_id: int | None):
+def import_customer_order(
+    db: Session, parsed: dict, filename: str,
+    user_id: int | None, user_name: str | None = None,
+):
     header = parsed["header"]
     order = Order(
         **{k: header.get(k) for k in _HEADER_KEYS},
@@ -117,14 +126,18 @@ def import_customer_order(db: Session, parsed: dict, filename: str, user_id: int
         row = _upsert_tracker(
             db, buyer_po=header.get("order_number"), style_no=style,
             colour=line.get("colour"), article=line.get("article"),
-            fields=fields, side="buyer", line_id=ol.id, user_id=user_id, warnings=warnings,
+            fields=fields, side="buyer", line_id=ol.id,
+            user_id=user_id, user_name=user_name, warnings=warnings,
         )
         touched.add(row.match_key)
     db.commit()
     return order, len(touched), warnings
 
 
-def import_vendor_order(db: Session, parsed: dict, filename: str, user_id: int | None):
+def import_vendor_order(
+    db: Session, parsed: dict, filename: str,
+    user_id: int | None, user_name: str | None = None,
+):
     orders: list[VendorOrder] = []
     warnings: list[str] = []
     touched: set[str] = set()
@@ -148,7 +161,8 @@ def import_vendor_order(db: Session, parsed: dict, filename: str, user_id: int |
             row = _upsert_tracker(
                 db, buyer_po=header.get("order_number"), style_no=style,
                 colour=line.get("colour"), article=line.get("article"),
-                fields=fields, side="vendor", line_id=vl.id, user_id=user_id, warnings=warnings,
+                fields=fields, side="vendor", line_id=vl.id,
+                user_id=user_id, user_name=user_name, warnings=warnings,
             )
             touched.add(row.match_key)
     db.commit()

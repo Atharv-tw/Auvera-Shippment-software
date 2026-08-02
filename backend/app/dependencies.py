@@ -3,6 +3,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app import permissions
 from app.database import get_db
 from app.models import User
 from app.security import decode_access_token
@@ -29,4 +30,22 @@ def get_current_user(
 def require_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != "admin":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin access required")
+    return user
+
+
+def require_upload(user: User = Depends(get_current_user)) -> User:
+    if not permissions.can_upload(user.role):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to upload order sheets")
+    return user
+
+
+def require_tracker_view(user: User = Depends(get_current_user)) -> User:
+    if not permissions.can_view_tracker(user.role):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to view the tracker")
+    return user
+
+
+def require_audit(user: User = Depends(get_current_user)) -> User:
+    if not permissions.can_view_audit(user.role):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to view the audit trail")
     return user
