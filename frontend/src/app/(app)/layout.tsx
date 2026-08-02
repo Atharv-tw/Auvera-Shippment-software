@@ -7,12 +7,19 @@ import { useAuth } from "@/lib/auth";
 import { Spinner } from "@/components/ui";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { clsx } from "@/components/clsx";
+import type { Role } from "@/lib/types";
+import {
+  ROLE_LABELS,
+  canViewTracker,
+  canUpload,
+  canEditOrderDetails,
+} from "@/lib/permissions";
 
-const NAV = [
-  { href: "/dashboard", label: "Dashboard", adminOnly: false },
-  { href: "/tracker", label: "Shipment Tracker", adminOnly: false },
-  { href: "/upload", label: "Upload Sheets", adminOnly: true },
-  { href: "/manual", label: "Manual Entry", adminOnly: false },
+const NAV: { href: string; label: string; show: (r: Role) => boolean }[] = [
+  { href: "/dashboard", label: "Dashboard", show: () => true },
+  { href: "/tracker", label: "Shipment Tracker", show: canViewTracker },
+  { href: "/upload", label: "Upload Sheets", show: canUpload },
+  { href: "/manual", label: "Manual Entry", show: canEditOrderDetails },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -37,11 +44,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             Order &amp; Shipment Tracker
           </div>
           <div className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-            {user.name} · {user.role}
+            {user.name} · {ROLE_LABELS[user.role] ?? user.role}
           </div>
         </div>
         <nav className="flex-1 space-y-0.5 p-2">
-          {NAV.filter((item) => !item.adminOnly || user.role === "admin").map((item) => (
+          {NAV.filter((item) => item.show(user.role)).map((item) => (
             <Link
               key={item.href}
               href={item.href}

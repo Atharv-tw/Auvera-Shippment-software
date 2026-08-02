@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Button, Card, Badge, Spinner, ErrorNote } from "@/components/ui";
+import { canViewTracker, canUpload, canEditOrderDetails } from "@/lib/permissions";
 import type { Order, TrackerRow, VendorOrder } from "@/lib/types";
 
 function StatCard({ label, value }: { label: string; value: number | string }) {
@@ -18,6 +19,7 @@ function StatCard({ label, value }: { label: string; value: number | string }) {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const showTracker = !!user && canViewTracker(user.role);
   const orders = useQuery({ queryKey: ["orders"], queryFn: () => api<Order[]>("/api/orders") });
   const vendors = useQuery({
     queryKey: ["vendor-orders"],
@@ -26,24 +28,27 @@ export default function DashboardPage() {
   const tracker = useQuery({
     queryKey: ["tracker"],
     queryFn: () => api<TrackerRow[]>("/api/tracker"),
+    enabled: showTracker,
   });
 
-  if (orders.isLoading || tracker.isLoading) return <Spinner />;
-  const error = orders.error || tracker.error || vendors.error;
+  if (orders.isLoading || (showTracker && tracker.isLoading)) return <Spinner />;
+  const error = orders.error || (showTracker && tracker.error) || vendors.error;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">Dashboard</h1>
         <div className="flex gap-2">
-          {user?.role === "admin" && (
+          {user && canUpload(user.role) && (
             <Link href="/upload">
               <Button>Upload sheets</Button>
             </Link>
           )}
-          <Link href="/manual">
-            <Button variant="secondary">New tracker row</Button>
-          </Link>
+          {user && canEditOrderDetails(user.role) && (
+            <Link href="/manual">
+              <Button variant="secondary">New tracker row</Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -52,13 +57,18 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Customer orders" value={orders.data?.length ?? 0} />
         <StatCard label="Vendor orders" value={vendors.data?.length ?? 0} />
-        <StatCard label="Tracker rows" value={tracker.data?.length ?? 0} />
-        <StatCard
-          label="Reconciled (both sides)"
-          value={tracker.data?.filter((r) => r.has_buyer && r.has_vendor).length ?? 0}
-        />
+        {showTracker && (
+          <>
+            <StatCard label="Tracker rows" value={tracker.data?.length ?? 0} />
+            <StatCard
+              label="Reconciled (both sides)"
+              value={tracker.data?.filter((r) => r.has_buyer && r.has_vendor).length ?? 0}
+            />
+          </>
+        )}
       </div>
 
+      {showTracker && (
       <Card
         title="Shipment Tracker"
         actions={
@@ -100,7 +110,7 @@ export default function DashboardPage() {
               {tracker.data?.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-6 text-center text-slate-400">
-                    No tracker rows yet. {user?.role === "admin" ? "Upload some order sheets." : ""}
+                    No tracker rows yet. {user && canUpload(user.role) ? "Upload some order sheets." : ""}
                   </td>
                 </tr>
               )}
@@ -108,6 +118,7 @@ export default function DashboardPage() {
           </table>
         </div>
       </Card>
+      )}
 
       <Card title="Customer orders">
         <div className="overflow-x-auto">

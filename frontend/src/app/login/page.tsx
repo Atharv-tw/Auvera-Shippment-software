@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/lib/auth";
 import { Button, Input, ErrorNote } from "@/components/ui";
+import { SELF_REGISTER_ROLES } from "@/lib/permissions";
 
 interface FormValues {
   email: string;
   password: string;
   name: string;
+  role: string;
 }
 
 export default function LoginPage() {
@@ -19,13 +21,19 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { isSubmitting },
-  } = useForm<FormValues>();
+  } = useForm<FormValues>({ defaultValues: { role: "merchant" } });
 
   const onSubmit = async (values: FormValues) => {
     setError(null);
     try {
       if (mode === "login") await login(values.email, values.password);
-      else await registerAccount(values.email, values.password, values.name);
+      else
+        await registerAccount(
+          values.email,
+          values.password,
+          values.name,
+          values.role,
+        );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     }
@@ -42,7 +50,19 @@ export default function LoginPage() {
         </p>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           {mode === "register" && (
-            <Input placeholder="Your name" {...register("name", { required: true })} />
+            <>
+              <Input placeholder="Your name" {...register("name", { required: true })} />
+              <select
+                {...register("role", { required: true })}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-blue-900/40"
+              >
+                {SELF_REGISTER_ROLES.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </>
           )}
           <Input
             type="email"

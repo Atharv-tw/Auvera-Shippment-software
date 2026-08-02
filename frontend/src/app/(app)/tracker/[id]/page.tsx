@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { canViewTracker } from "@/lib/permissions";
 import { Card, Badge, Spinner, ErrorNote } from "@/components/ui";
 import { clsx } from "@/components/clsx";
 import { TrackerFieldView } from "@/components/TrackerFieldView";
@@ -16,17 +17,22 @@ export default function TrackerRowPage({ params }: { params: Promise<{ id: strin
   const { user } = useAuth();
   const qc = useQueryClient();
   const [view, setView] = useState<"fields" | "excel">("fields");
+  const allowed = !!user && canViewTracker(user.role);
 
   const columns = useQuery({
     queryKey: ["tracker-columns"],
     queryFn: () => api<TrackerColumn[]>("/api/tracker/columns"),
     staleTime: Infinity,
+    enabled: allowed,
   });
   const row = useQuery({
     queryKey: ["tracker-row", id],
     queryFn: () => api<TrackerRow>(`/api/tracker/${id}`),
+    enabled: allowed,
   });
 
+  if (user && !allowed)
+    return <ErrorNote message="Your role does not have access to the shipment tracker." />;
   if (columns.isLoading || row.isLoading) return <Spinner />;
   if (row.error) return <ErrorNote message={(row.error as Error).message} />;
   const r = row.data!;
@@ -69,12 +75,12 @@ export default function TrackerRowPage({ params }: { params: Promise<{ id: strin
 
       <Card>
         {view === "fields" ? (
-          <TrackerFieldView row={r} columns={cols} canEdit={!!user} onSaved={refresh} />
+          <TrackerFieldView row={r} columns={cols} role={user!.role} onSaved={refresh} />
         ) : (
           <TrackerGrid
             rows={[r]}
             columns={cols}
-            canEdit={!!user}
+            role={user!.role}
             onSaved={refresh}
             height={200}
           />

@@ -4,18 +4,24 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiUpload, ApiError } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { canUpload } from "@/lib/permissions";
 import { Button, Card, Badge, ErrorNote } from "@/components/ui";
 import { clsx } from "@/components/clsx";
 import type { UploadResponse, UploadFileResult } from "@/lib/types";
 
 export default function UploadPage() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<UploadFileResult[] | null>(null);
+
+  if (user && !canUpload(user.role))
+    return <ErrorNote message="Your role is not allowed to upload order sheets." />;
 
   const addFiles = (list: FileList | null) => {
     if (!list) return;

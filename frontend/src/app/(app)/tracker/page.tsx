@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiDownload } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { canViewTracker } from "@/lib/permissions";
 import { Button, Card, Input, Spinner, ErrorNote } from "@/components/ui";
 import { TrackerGrid } from "@/components/TrackerGrid";
 import type { TrackerColumn, TrackerRow } from "@/lib/types";
@@ -12,17 +13,23 @@ export default function TrackerPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const allowed = !!user && canViewTracker(user.role);
 
   const columns = useQuery({
     queryKey: ["tracker-columns"],
     queryFn: () => api<TrackerColumn[]>("/api/tracker/columns"),
     staleTime: Infinity,
+    enabled: allowed,
   });
   const rows = useQuery({
     queryKey: ["tracker", search],
     queryFn: () =>
       api<TrackerRow[]>(`/api/tracker${search ? `?search=${encodeURIComponent(search)}` : ""}`),
+    enabled: allowed,
   });
+
+  if (user && !allowed)
+    return <ErrorNote message="Your role does not have access to the shipment tracker." />;
 
   return (
     <div className="space-y-4">
@@ -57,7 +64,7 @@ export default function TrackerPage() {
           <TrackerGrid
             rows={rows.data ?? []}
             columns={columns.data ?? []}
-            canEdit={!!user}
+            role={user!.role}
             onSaved={() => qc.invalidateQueries({ queryKey: ["tracker"] })}
           />
         )}

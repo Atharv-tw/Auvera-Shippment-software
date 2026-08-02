@@ -1,8 +1,27 @@
+export type Role =
+  | "admin"
+  | "ceo"
+  | "shipping_manager"
+  | "merchant"
+  | "vendor"; // legacy, read-only
+
 export interface User {
   id: number;
   email: string;
   name: string;
-  role: "admin" | "vendor";
+  role: Role;
+}
+
+export interface AuditEntry {
+  id: number;
+  field_key: string;
+  field_label: string;
+  field_class: "order_detail" | "operational";
+  old_value: string | null;
+  new_value: string | null;
+  action: "import" | "manual" | "edit";
+  user_name: string | null;
+  created_at: string | null;
 }
 
 export interface TokenResponse {

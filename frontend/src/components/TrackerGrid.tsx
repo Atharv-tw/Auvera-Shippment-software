@@ -12,7 +12,8 @@ import {
 } from "ag-grid-community";
 import { api, ApiError } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
-import type { TrackerColumn, TrackerRow } from "@/lib/types";
+import type { Role, TrackerColumn, TrackerRow } from "@/lib/types";
+import { canEditSource, canEditAnyTracker } from "@/lib/permissions";
 import { Button, ErrorNote } from "@/components/ui";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -27,17 +28,18 @@ type Row = Record<string, unknown> & { __id: number };
 export function TrackerGrid({
   rows,
   columns,
-  canEdit,
+  role,
   onSaved,
   height = 460,
 }: {
   rows: TrackerRow[];
   columns: TrackerColumn[];
-  canEdit: boolean;
+  role: Role;
   onSaved: () => void;
   height?: number;
 }) {
   const { theme } = useTheme();
+  const canEdit = canEditAnyTracker(role);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [gridEpoch, setGridEpoch] = useState(0);
@@ -55,7 +57,7 @@ export function TrackerGrid({
       columns.map((c) => ({
         field: c.key,
         headerName: c.label,
-        editable: editing && canEdit,
+        editable: editing && canEditSource(role, c.source),
         minWidth: 130,
         headerClass:
           c.source === "buyer"
@@ -71,7 +73,7 @@ export function TrackerGrid({
             : "agTextCellEditor",
         cellDataType: false,
       })),
-    [columns, editing, canEdit],
+    [columns, editing, role],
   );
 
   const onCellValueChanged = (event: CellValueChangedEvent) => {

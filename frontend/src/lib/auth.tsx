@@ -9,7 +9,12 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    name: string,
+    role: string,
+  ) => Promise<void>;
   logout: () => void;
 }
 
@@ -45,10 +50,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const register = useCallback(
-    async (email: string, password: string, name: string) => {
+    async (email: string, password: string, name: string, role: string) => {
       const data = await api<TokenResponse>("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ email, password, name, role: "vendor" }),
+        body: JSON.stringify({ email, password, name, role }),
       });
       setToken(data.access_token);
       setUser(data.user);
