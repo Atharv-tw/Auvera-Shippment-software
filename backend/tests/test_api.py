@@ -3,7 +3,7 @@ from .conftest import CUSTOMER_FILES, SAMPLES, VENDOR_FILES
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
-def _register(client, email, password="secret123", role="vendor"):
+def _register(client, email, password="secret123", role="merchant"):
     r = client.post("/api/auth/register", json={
         "email": email, "password": password, "name": email.split("@")[0], "role": role,
     })
@@ -63,11 +63,18 @@ def test_full_flow(client):
     assert r.content[:2] == b"PK"  # zip/xlsx magic
 
 
-def test_vendor_role_cannot_upload(client):
-    _register(client, "admin@example.com")            # first -> admin
-    vendor = _register(client, "vendor@example.com")  # second -> vendor
-    r = client.post("/api/orders/upload", files=_files(CUSTOMER_FILES[:1]), headers=_auth(vendor))
+def test_non_uploader_cannot_upload(client):
+    _register(client, "admin@example.com")                    # first -> admin
+    ceo = _register(client, "ceo@example.com", role="ceo")    # ceo may not upload
+    r = client.post("/api/orders/upload", files=_files(CUSTOMER_FILES[:1]), headers=_auth(ceo))
     assert r.status_code == 403
+
+
+def test_merchant_can_upload(client):
+    _register(client, "admin@example.com")
+    merchant = _register(client, "merchant@example.com", role="merchant")
+    r = client.post("/api/orders/upload", files=_files(CUSTOMER_FILES[:1]), headers=_auth(merchant))
+    assert r.status_code == 200, r.text
 
 
 def test_requires_auth(client):
