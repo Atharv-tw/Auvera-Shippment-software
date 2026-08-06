@@ -26,8 +26,10 @@ Everything (Postgres + backend + frontend) via `docker compose`:
 cp .env.example .env      # edit secrets: JWT_SECRET, ADMIN_PASSWORD, POSTGRES_PASSWORD
 docker compose up --build
 ```
-Then open http://localhost:3000 (API on http://localhost:8000). The admin user is created on
-first boot from `.env`; set `SEED_DEMO_USERS=true` to also add the ceo/shipping/merchant demo users.
+Then open http://localhost:3000 (API on http://localhost:8000). The admin (`ADMIN_EMAIL`) is created
+on first boot, and its password is kept in sync with `ADMIN_PASSWORD` on every boot — so to change it,
+edit `.env` and run `docker compose up -d --build backend`. Set `SEED_DEMO_USERS=true` to also add the
+ceo/shipping/merchant demo users (their passwords are seed-only, not synced).
 
 Data lives in the `pgdata` volume; uploaded workbooks are scratch (parsed into Postgres on import,
 never read again) and kept in the `uploads` volume.

@@ -9,7 +9,7 @@ import os
 
 from app.database import Base, SessionLocal, engine
 from app.models import User
-from app.security import hash_password
+from app.security import hash_password, verify_password
 
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@example.com")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin12345")
@@ -24,9 +24,16 @@ DEMO_USERS = [
 ]
 
 
-def _ensure(db, email: str, password: str, name: str, role: str) -> None:
-    if db.query(User).filter(User.email == email.lower()).first():
-        print(f"Exists: {email} ({role})")
+def _ensure(db, email: str, password: str, name: str, role: str, sync_password: bool = False) -> None:
+    existing = db.query(User).filter(User.email == email.lower()).first()
+    if existing:
+        # keep the admin credential in sync with ADMIN_PASSWORD so editing .env and
+        # restarting actually changes the password (seeding alone is create-only)
+        if sync_password and not verify_password(password, existing.password_hash):
+            existing.password_hash = hash_password(password)
+            print(f"Updated password: {email} ({role})")
+        else:
+            print(f"Exists: {email} ({role})")
         return
     db.add(User(
         email=email.lower(),
@@ -41,7 +48,7 @@ def main() -> None:
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
-        _ensure(db, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, "admin")
+        _ensure(db, ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, "admin", sync_password=True)
         if SEED_DEMO_USERS:
             for email, password, name, role in DEMO_USERS:
                 _ensure(db, email, password, name, role)
