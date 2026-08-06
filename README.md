@@ -15,9 +15,28 @@ Ingests **Roman Originals** order paperwork and maintains a central **Shipment T
 - Shipment Tracker: editable AG-Grid **Excel view** + per-row **Field view**; `.xlsx` export in the
   original tracker layout.
 - Manual tracker-row entry.
-- Login with admin / vendor roles (admin uploads & deletes; vendors view & edit).
+- Four roles: **admin** (everything), **ceo** (edits order details, read-only tracker, sees the
+  audit trail), **shipping_manager** (edits operational tracker data), **merchant** (uploads +
+  views orders, no tracker). Every field change is recorded in a per-field audit trail.
 
-## Run
+## Run with Docker (recommended)
+
+Everything (Postgres + backend + frontend) via `docker compose`:
+```bash
+cp .env.example .env      # edit secrets: JWT_SECRET, ADMIN_PASSWORD, POSTGRES_PASSWORD
+docker compose up --build
+```
+Then open http://localhost:3000 (API on http://localhost:8000). The admin user is created on
+first boot from `.env`; set `SEED_DEMO_USERS=true` to also add the ceo/shipping/merchant demo users.
+
+Data lives in the `pgdata` volume; uploaded workbooks are scratch (parsed into Postgres on import,
+never read again) and kept in the `uploads` volume.
+
+**Behind a domain / reverse proxy:** point `NEXT_PUBLIC_API_URL` at the API's public URL and set
+`CORS_ORIGINS` to the frontend's URL, then rebuild the frontend image (the API URL is baked in at
+build time). Put nginx/Caddy in front for TLS.
+
+## Run locally without Docker
 
 Backend (FastAPI, SQLite via `uv`):
 ```bash
