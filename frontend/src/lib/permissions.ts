@@ -24,9 +24,14 @@ export const canEditOperational = (r: Role) =>
 
 export const canEditOrderDetails = (r: Role) => r === "admin" || r === "ceo";
 
-export const canUpload = (r: Role) => r === "admin" || r === "merchant";
+export const canUpload = (r: Role) => r === "admin" || r === "merchant" || r === "ceo";
 
 export const canViewAudit = (r: Role) => r === "admin" || r === "ceo";
+
+/** Bulk/inline editing in the spreadsheet-style tracker grid ("Excel view") is
+ * restricted to admin + shipping_manager. CEO still edits order-detail fields,
+ * but only through the per-row field view (each change is audited the same way). */
+export const canUseExcelView = (r: Role) => r === "admin" || r === "shipping_manager";
 
 export const canDelete = (r: Role) => r === "admin";
 

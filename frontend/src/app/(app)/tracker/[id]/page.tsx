@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { canViewTracker } from "@/lib/permissions";
+import { canViewTracker, canUseExcelView } from "@/lib/permissions";
 import { Card, Badge, Spinner, ErrorNote } from "@/components/ui";
 import { clsx } from "@/components/clsx";
 import { TrackerFieldView } from "@/components/TrackerFieldView";
@@ -18,6 +18,7 @@ export default function TrackerRowPage({ params }: { params: Promise<{ id: strin
   const qc = useQueryClient();
   const [view, setView] = useState<"fields" | "excel">("fields");
   const allowed = !!user && canViewTracker(user.role);
+  const showExcelView = !!user && canUseExcelView(user.role);
 
   const columns = useQuery({
     queryKey: ["tracker-columns"],
@@ -56,27 +57,27 @@ export default function TrackerRowPage({ params }: { params: Promise<{ id: strin
         {r.has_vendor && <Badge color="green">vendor</Badge>}
       </div>
 
-      <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5 dark:border-slate-800 dark:bg-slate-900">
-        {(["fields", "excel"] as const).map((v) => (
-          <button
-            key={v}
-            onClick={() => setView(v)}
-            className={clsx(
-              "rounded px-3 py-1.5 text-sm",
-              view === v
-                ? "bg-blue-600 text-white"
-                : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800",
-            )}
-          >
-            {v === "fields" ? "Field view" : "Excel view"}
-          </button>
-        ))}
-      </div>
+      {showExcelView && (
+        <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5 dark:border-slate-800 dark:bg-slate-900">
+          {(["fields", "excel"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={clsx(
+                "rounded px-3 py-1.5 text-sm",
+                view === v
+                  ? "bg-blue-600 text-white"
+                  : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800",
+              )}
+            >
+              {v === "fields" ? "Field view" : "Excel view"}
+            </button>
+          ))}
+        </div>
+      )}
 
       <Card>
-        {view === "fields" ? (
-          <TrackerFieldView row={r} columns={cols} role={user!.role} onSaved={refresh} />
-        ) : (
+        {view === "excel" && showExcelView ? (
           <TrackerGrid
             rows={[r]}
             columns={cols}
@@ -84,6 +85,8 @@ export default function TrackerRowPage({ params }: { params: Promise<{ id: strin
             onSaved={refresh}
             height={200}
           />
+        ) : (
+          <TrackerFieldView row={r} columns={cols} role={user!.role} onSaved={refresh} />
         )}
       </Card>
     </div>

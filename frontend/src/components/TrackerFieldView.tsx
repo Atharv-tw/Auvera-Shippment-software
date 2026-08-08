@@ -12,6 +12,7 @@ import {
   isOrderDetailSource,
 } from "@/lib/permissions";
 import { Button, ErrorNote, Badge } from "@/components/ui";
+import { toDisplayDate, toIsoDate } from "@/lib/dateFormat";
 
 const GROUPS: { title: string; sources: string[] }[] = [
   { title: "Buyer", sources: ["buyer", "const"] },
@@ -45,17 +46,24 @@ export function TrackerFieldView({
   const editable = (source: string) => canEditSource(role, source);
   const showAudit = canViewAudit(role);
   const canEdit = canEditAnyTracker(role);
+  const typeByKey = useMemo(
+    () => Object.fromEntries(columns.map((c) => [c.key, c.type])),
+    [columns],
+  );
+  const displayValue = (key: string, raw: unknown) =>
+    typeByKey[key] === "date" ? toDisplayDate(raw) : String(raw ?? "");
 
-  const value = (key: string) => (key in draft ? draft[key] : (row.data[key] ?? ""));
+  const value = (key: string) =>
+    key in draft ? draft[key] : displayValue(key, row.data[key] ?? "");
 
   const changes = useMemo(
     () =>
       Object.fromEntries(
-        Object.entries(draft).filter(
-          ([k, v]) => String(v ?? "") !== String(row.data[k] ?? ""),
-        ),
+        Object.entries(draft)
+          .filter(([k, v]) => String(v ?? "") !== displayValue(k, row.data[k]))
+          .map(([k, v]) => [k, typeByKey[k] === "date" ? toIsoDate(v) : v]),
       ),
-    [draft, row.data],
+    [draft, row.data, typeByKey],
   );
 
   const save = async () => {
@@ -153,7 +161,9 @@ export function TrackerFieldView({
                       />
                     ) : (
                       <div className="mt-0.5 text-sm text-slate-800 dark:text-slate-200">
-                        {String(row.data[c.key] ?? "—")}
+                        {row.data[c.key] != null && row.data[c.key] !== ""
+                          ? displayValue(c.key, row.data[c.key])
+                          : "—"}
                       </div>
                     )}
                   </div>
@@ -169,6 +179,7 @@ export function TrackerFieldView({
           rowId={row.id}
           field={auditCol.key}
           label={auditCol.label}
+          isDate={auditCol.type === "date"}
           onClose={() => setAuditKey(null)}
         />
       )}
@@ -180,11 +191,13 @@ function AuditDrawer({
   rowId,
   field,
   label,
+  isDate,
   onClose,
 }: {
   rowId: number;
   field: string;
   label: string;
+  isDate: boolean;
   onClose: () => void;
 }) {
   const q = useQuery({
@@ -236,10 +249,12 @@ function AuditDrawer({
                   </span>
                 </div>
                 <div className="mt-1.5 text-xs text-slate-600 dark:text-slate-400">
-                  <span className="text-slate-400 line-through">{e.old_value ?? "(empty)"}</span>
+                  <span className="text-slate-400 line-through">
+                    {e.old_value ? (isDate ? toDisplayDate(e.old_value) : e.old_value) : "(empty)"}
+                  </span>
                   {" → "}
                   <span className="font-medium text-slate-800 dark:text-slate-200">
-                    {e.new_value ?? "(empty)"}
+                    {e.new_value ? (isDate ? toDisplayDate(e.new_value) : e.new_value) : "(empty)"}
                   </span>
                 </div>
               </li>

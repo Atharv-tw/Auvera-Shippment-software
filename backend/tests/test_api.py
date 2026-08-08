@@ -64,10 +64,17 @@ def test_full_flow(client):
 
 
 def test_non_uploader_cannot_upload(client):
-    _register(client, "admin@example.com")                    # first -> admin
-    ceo = _register(client, "ceo@example.com", role="ceo")    # ceo may not upload
-    r = client.post("/api/orders/upload", files=_files(CUSTOMER_FILES[:1]), headers=_auth(ceo))
+    _register(client, "admin@example.com")                              # first -> admin
+    shipping = _register(client, "ship@example.com", role="shipping_manager")
+    r = client.post("/api/orders/upload", files=_files(CUSTOMER_FILES[:1]), headers=_auth(shipping))
     assert r.status_code == 403
+
+
+def test_ceo_can_upload(client):
+    _register(client, "admin@example.com")
+    ceo = _register(client, "ceo@example.com", role="ceo")
+    r = client.post("/api/orders/upload", files=_files(CUSTOMER_FILES[:1]), headers=_auth(ceo))
+    assert r.status_code == 200, r.text
 
 
 def test_merchant_can_upload(client):

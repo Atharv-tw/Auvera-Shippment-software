@@ -32,7 +32,7 @@ TRACKER_COLUMNS: list[dict[str, str]] = [
     dict(col="P", key="buyer_net_price", label="Buyer Net Price", type="number", source="buyer"),
     dict(col="Q", key="buyer_total_value", label="Buyer Total Value", type="number", source="buyer"),
     dict(col="R", key="vendor_terms", label="Vendor Terms", type="text", source="vendor"),
-    dict(col="S", key="factory_price", label="Factory /  SAP Price", type="number", source="vendor"),
+    dict(col="S", key="factory_price", label="Factory Unit Price", type="number", source="vendor"),
     dict(col="T", key="vendor_total_value", label="Vendor Total Value", type="number", source="vendor"),
     dict(col="U", key="price_difference", label="Price Difference", type="number", source="calc"),
     dict(col="V", key="factory_inv_no", label="Factory Inv No.", type="text", source="operational"),

@@ -3,8 +3,9 @@
 Roles
 -----
 - ``admin``            – full access (edit everything, upload, delete, view audit).
-- ``ceo``              – edits order details, views (not edits) tracker/operational
-                         data, sees the field-level audit trail. Views everything.
+- ``ceo``              – edits order details (via the per-row field view only, never
+                         the bulk tracker grid), views (not edits) operational data,
+                         sees the field-level audit trail, and may upload order sheets.
 - ``shipping_manager`` – edits the tracker's operational data, views (not edits)
                          order details.
 - ``merchant``         – uploads order sheets and views order details; no tracker.
@@ -39,7 +40,7 @@ def can_edit_order_details(role: str) -> bool:
 
 
 def can_upload(role: str) -> bool:
-    return role in (ADMIN, MERCHANT)
+    return role in (ADMIN, MERCHANT, CEO)
 
 
 def can_view_audit(role: str) -> bool:

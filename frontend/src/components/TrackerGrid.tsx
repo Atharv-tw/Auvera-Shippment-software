@@ -13,8 +13,9 @@ import {
 import { api, ApiError } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import type { Role, TrackerColumn, TrackerRow } from "@/lib/types";
-import { canEditSource, canEditAnyTracker } from "@/lib/permissions";
+import { canEditSource, canUseExcelView } from "@/lib/permissions";
 import { Button, ErrorNote } from "@/components/ui";
+import { toDisplayDate, toIsoDate } from "@/lib/dateFormat";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -39,7 +40,7 @@ export function TrackerGrid({
   height?: number;
 }) {
   const { theme } = useTheme();
-  const canEdit = canEditAnyTracker(role);
+  const canEdit = canUseExcelView(role);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [gridEpoch, setGridEpoch] = useState(0);
@@ -57,7 +58,7 @@ export function TrackerGrid({
       columns.map((c) => ({
         field: c.key,
         headerName: c.label,
-        editable: editing && canEditSource(role, c.source),
+        editable: editing && canUseExcelView(role) && canEditSource(role, c.source),
         minWidth: 130,
         headerClass:
           c.source === "buyer"
@@ -72,6 +73,13 @@ export function TrackerGrid({
             ? "agNumberCellEditor"
             : "agTextCellEditor",
         cellDataType: false,
+        ...(c.type === "date"
+          ? {
+              valueFormatter: (p: { value: unknown }) => toDisplayDate(p.value),
+              valueParser: (p: { newValue: unknown }) => toIsoDate(p.newValue),
+              cellEditorParams: { useFormatter: true },
+            }
+          : {}),
       })),
     [columns, editing, role],
   );

@@ -9,6 +9,13 @@ import { Button, Card, Input, Spinner, ErrorNote } from "@/components/ui";
 import { TrackerGrid } from "@/components/TrackerGrid";
 import type { TrackerColumn, TrackerRow } from "@/lib/types";
 
+function todayDdMmYyyy(): string {
+  const d = new Date();
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}-${mm}-${d.getFullYear()}`;
+}
+
 export default function TrackerPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -38,7 +45,7 @@ export default function TrackerPage() {
         <Button
           variant="secondary"
           onClick={() =>
-            apiDownload("/api/tracker/export", `Shipment Tracker ${new Date().toISOString().slice(0, 10)}.xlsx`)
+            apiDownload("/api/tracker/export", `Shipment Tracker ${todayDdMmYyyy()}.xlsx`)
           }
         >
           Download .xlsx
