@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
@@ -44,23 +45,27 @@ def upload_orders(
             continue
         try:
             path = save_upload(content)
-            kind = detect_kind(path, name_hint=name)
-            if kind == "vendor":
-                parsed = parse_vendor_order(path)
-                orders, touched, warnings = reconcile.import_vendor_order(db, parsed, name, user.id, user.name)
-                results.append(UploadFileResult(
-                    filename=name, kind="vendor", status="created",
-                    order_ids=[o.id for o in orders], tracker_rows_touched=touched,
-                    warnings=warnings,
-                ))
-            else:
-                parsed = parse_customer_order(path)
-                order, touched, warnings = reconcile.import_customer_order(db, parsed, name, user.id, user.name)
-                results.append(UploadFileResult(
-                    filename=name, kind="customer", status="created",
-                    order_ids=[order.id], tracker_rows_touched=touched,
-                    warnings=warnings,
-                ))
+            try:
+                kind = detect_kind(path, name_hint=name)
+                if kind == "vendor":
+                    parsed = parse_vendor_order(path)
+                    orders, touched, warnings = reconcile.import_vendor_order(db, parsed, name, user.id, user.name)
+                    results.append(UploadFileResult(
+                        filename=name, kind="vendor", status="created",
+                        order_ids=[o.id for o in orders], tracker_rows_touched=touched,
+                        warnings=warnings,
+                    ))
+                else:
+                    parsed = parse_customer_order(path)
+                    order, touched, warnings = reconcile.import_customer_order(db, parsed, name, user.id, user.name)
+                    results.append(UploadFileResult(
+                        filename=name, kind="customer", status="created",
+                        order_ids=[order.id], tracker_rows_touched=touched,
+                        warnings=warnings,
+                    ))
+            finally:
+                if os.path.exists(path):
+                    os.remove(path)
         except Exception as exc:  # noqa: BLE001 - surface parse failures per file
             db.rollback()
             results.append(UploadFileResult(filename=name, status="error", error=str(exc)))
