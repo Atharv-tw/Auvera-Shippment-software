@@ -1,4 +1,5 @@
 import os
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
@@ -13,7 +14,11 @@ from app.schemas import (
     VendorOrderOut,
 )
 from app.services import reconcile
-from app.services.order_parser import detect_kind, parse_customer_order, parse_vendor_order
+from app.services.order_parser import (
+    detect_kind,
+    parse_customer_order,
+    parse_vendor_order,
+)
 from app.services.storage import save_upload
 
 router = APIRouter(prefix="/api", tags=["orders"])
