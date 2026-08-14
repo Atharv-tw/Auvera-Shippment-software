@@ -7,6 +7,7 @@ import {
   ModuleRegistry,
   colorSchemeDark,
   themeQuartz,
+  type CellKeyDownEvent,
   type CellValueChangedEvent,
   type ColDef,
 } from "ag-grid-community";
@@ -88,9 +89,24 @@ export function TrackerGrid({
     const row = event.data as Row;
     const key = event.colDef.field as string;
     const current = changesRef.current.get(row.__id) ?? {};
-    current[key] = event.newValue === undefined ? null : event.newValue;
+    // undefined / "" both mean "cleared" — send null so the value is really removed
+    const v = event.newValue;
+    current[key] = v === undefined || v === "" ? null : v;
     changesRef.current.set(row.__id, current);
     setDirtyCount([...changesRef.current.values()].reduce((n, c) => n + Object.keys(c).length, 0));
+  };
+
+  /** Delete / Backspace on a focused cell clears it (AG Grid Community has no
+   * built-in clear-on-delete). Writes null so the field really empties. */
+  const onCellKeyDown = (event: CellKeyDownEvent) => {
+    const ke = event.event as KeyboardEvent | null;
+    if (!ke || (ke.key !== "Delete" && ke.key !== "Backspace")) return;
+    if (event.colDef.editable !== true) return;
+    const key = event.colDef.field;
+    if (!key || !event.node) return;
+    ke.preventDefault();
+    if ((event.node.data as Row)?.[key] == null) return;
+    event.node.setDataValue(key, null); // fires onCellValueChanged
   };
 
   const cancel = () => {
@@ -130,7 +146,7 @@ export function TrackerGrid({
       <div className="flex items-center gap-2">
         <p className="text-xs text-slate-500">
           {editing
-            ? "Double-click a cell to edit. Blue = buyer, green = vendor, grey = derived."
+            ? "Double-click a cell to edit, or select it and press Delete to clear. Blue = buyer, green = vendor, grey = derived."
             : "Read-only view. " + (canEdit ? "Click Edit to change values." : "")}
         </p>
         <div className="ml-auto flex gap-2">
@@ -162,6 +178,7 @@ export function TrackerGrid({
           rowData={rowData}
           defaultColDef={{ resizable: true, sortable: true, filter: false }}
           onCellValueChanged={onCellValueChanged}
+          onCellKeyDown={onCellKeyDown}
           animateRows={false}
           getRowId={(p) => String((p.data as Row).__id)}
         />

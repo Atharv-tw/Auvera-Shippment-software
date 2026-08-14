@@ -109,6 +109,10 @@ def _apply_fields(db: Session, row: TrackerRow, fields: dict, user: User, action
     for key, val in fields.items():
         if key not in valid:
             continue
+        # a blank submission means "clear this cell" — normalise to None so the
+        # value is genuinely empty (exports, derived columns) rather than ""
+        if isinstance(val, str) and not val.strip():
+            val = None
         audit.record_change(
             db, row_id=row.id, key=key, old=data.get(key), new=val,
             action=action, user_id=user.id, user_name=user.name,
@@ -125,17 +129,17 @@ def _apply_fields(db: Session, row: TrackerRow, fields: dict, user: User, action
     # recompute price difference unless the user set it explicitly
     if "price_difference" not in edited:
         b, f = data.get("buyer_net_price"), data.get("factory_price")
-        if b is not None and f is not None:
-            try:
-                new_diff = round(float(b) - float(f), 4)
-                audit.record_change(
-                    db, row_id=row.id, key="price_difference",
-                    old=data.get("price_difference"), new=new_diff,
-                    action=action, user_id=user.id, user_name=user.name,
-                )
-                data["price_difference"] = new_diff
-            except (TypeError, ValueError):
-                pass
+        try:
+            new_diff = None if b is None or f is None else round(float(b) - float(f), 4)
+        except (TypeError, ValueError):
+            new_diff = data.get("price_difference")  # leave as-is on bad input
+        if new_diff != data.get("price_difference"):
+            audit.record_change(
+                db, row_id=row.id, key="price_difference",
+                old=data.get("price_difference"), new=new_diff,
+                action=action, user_id=user.id, user_name=user.name,
+            )
+            data["price_difference"] = new_diff
     row.data = data
     row.edited_keys = sorted(edited)
     row.match_key = tm.match_key(row.buyer_po, row.style_no, row.colour)
