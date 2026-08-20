@@ -15,8 +15,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       aria-label="Toggle theme"
       className={clsx(
         "inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors",
-        "border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
-        "dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700",
+        "border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700",
         className,
       )}
     >

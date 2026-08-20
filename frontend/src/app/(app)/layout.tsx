@@ -41,8 +41,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div className="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
+      <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col bg-slate-900">
+        <div className="border-b border-slate-700/50 px-4 py-4">
           <div className="flex items-center gap-2.5">
             <Image
               src="/logo.png"
@@ -52,15 +52,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               className="h-7 w-7 rounded object-contain"
             />
             <div className="min-w-0 leading-tight">
-              <div className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
+              <div className="truncate text-sm font-bold text-white">
                 Auvera Studio
               </div>
-              <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
                 Apparel Sourcing
               </div>
             </div>
           </div>
-          <div className="mt-2 truncate text-xs text-slate-500 dark:text-slate-400">
+          <div className="mt-2 truncate text-xs text-slate-400">
             {user.name} · {ROLE_LABELS[user.role] ?? user.role}
           </div>
         </div>
@@ -72,19 +72,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               className={clsx(
                 "block rounded-md px-3 py-2 text-sm",
                 isActive(item.href)
-                  ? "bg-blue-50 font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
-                  : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800",
+                  ? "bg-blue-500/15 font-medium text-blue-400"
+                  : "text-slate-300 hover:bg-slate-800 hover:text-white",
               )}
             >
               {item.label}
             </Link>
           ))}
         </nav>
-        <div className="space-y-1 border-t border-slate-100 p-2 dark:border-slate-800">
+        <div className="space-y-1 border-t border-slate-700/50 p-2">
           <ThemeToggle className="w-full justify-center" />
           <button
             onClick={logout}
-            className="w-full rounded-md px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="w-full rounded-md px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
           >
             Sign out
           </button>
