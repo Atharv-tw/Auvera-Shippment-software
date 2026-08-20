@@ -46,17 +46,17 @@ export default function LoginPage() {
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Left branding panel */}
       <div className="hidden flex-col items-center justify-center bg-slate-900 p-10 lg:flex lg:w-1/2">
-        <div className="flex flex-col items-center gap-4 text-center">
+        <div className="flex flex-col items-center gap-5 text-center">
           <Image
             src="/logo.png"
             alt="Auvera Studio Limited"
-            width={80}
-            height={80}
-            className="h-20 w-20 rounded-2xl object-contain"
+            width={120}
+            height={120}
+            className="h-28 w-28 rounded-2xl object-contain"
           />
           <div>
-            <div className="text-lg font-bold text-white">Auvera Studio Limited</div>
-            <div className="mt-1 text-[11px] font-medium uppercase tracking-widest text-slate-400">
+            <div className="text-2xl font-bold text-white">Auvera Studio Limited</div>
+            <div className="mt-1.5 text-xs font-medium uppercase tracking-widest text-slate-400">
               Apparel Sourcing
             </div>
           </div>
