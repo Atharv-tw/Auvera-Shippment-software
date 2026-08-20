@@ -7,8 +7,9 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Order & Shipment Tracker",
-  description: "Customer / Vendor order ingestion and shipment tracker",
+  title: "Auvera Studio Limited — Order & Shipment Tracker",
+  description:
+    "Apparel sourcing and shipment management platform for Auvera Studio Limited",
 };
 
 export default function RootLayout({

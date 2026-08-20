@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { Spinner } from "@/components/ui";
@@ -42,10 +43,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
-          <div className="text-sm font-bold text-slate-900 dark:text-slate-100">
-            Order &amp; Shipment Tracker
+          <div className="flex items-center gap-2.5">
+            <Image
+              src="/logo.png"
+              alt="Auvera"
+              width={28}
+              height={28}
+              className="h-7 w-7 rounded object-contain"
+            />
+            <div className="min-w-0 leading-tight">
+              <div className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
+                Auvera Studio
+              </div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Apparel Sourcing
+              </div>
+            </div>
           </div>
-          <div className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
+          <div className="mt-2 truncate text-xs text-slate-500 dark:text-slate-400">
             {user.name} · {ROLE_LABELS[user.role] ?? user.role}
           </div>
         </div>
