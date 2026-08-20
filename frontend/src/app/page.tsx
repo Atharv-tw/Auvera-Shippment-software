@@ -50,7 +50,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/80">
+      <header className="sticky top-0 z-50 bg-slate-900 dark:bg-slate-950">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
           <div className="flex items-center gap-3">
             <Image
@@ -62,10 +62,10 @@ export default function LandingPage() {
               priority
             />
             <div className="leading-tight">
-              <div className="text-sm font-bold tracking-tight text-slate-900 dark:text-slate-50">
+              <div className="text-sm font-bold tracking-tight text-white">
                 Auvera Studio Limited
               </div>
-              <div className="text-[11px] font-medium uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              <div className="text-[11px] font-medium uppercase tracking-widest text-slate-400">
                 Apparel Sourcing
               </div>
             </div>
