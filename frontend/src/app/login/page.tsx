@@ -43,7 +43,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="flex min-h-screen bg-slate-50">
       {/* Left branding panel */}
       <div className="hidden flex-col items-center justify-center bg-slate-900 p-10 lg:flex lg:w-1/2">
         <div className="flex flex-col items-center gap-5 text-center">
@@ -68,7 +68,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           <Link
             href="/"
-            className="mb-8 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            className="mb-8 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700:text-slate-200"
           >
             <ArrowLeft size={14} />
             Back to home
@@ -83,19 +83,19 @@ export default function LoginPage() {
               className="h-8 w-8 rounded-md object-contain"
             />
             <div>
-              <div className="text-sm font-bold text-slate-900 dark:text-slate-50">
+              <div className="text-sm font-bold text-slate-900">
                 Auvera Studio Limited
               </div>
-              <div className="text-[11px] font-medium uppercase tracking-widest text-slate-400 dark:text-slate-500">
+              <div className="text-[11px] font-medium uppercase tracking-widest text-slate-400">
                 Apparel Sourcing
               </div>
             </div>
           </div>
 
-          <h1 className="mt-6 text-xl font-bold text-slate-900 dark:text-slate-50">
+          <h1 className="mt-6 text-xl font-bold text-slate-900">
             {mode === "login" ? "Welcome back" : "Create your account"}
           </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-sm text-slate-500">
             {mode === "login"
               ? "Sign in to access the shipment tracker"
               : "Register a new account with your role"}
@@ -110,7 +110,7 @@ export default function LoginPage() {
                 />
                 <select
                   {...register("role", { required: true })}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:ring-blue-900/40"
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100:ring-blue-900/40"
                 >
                   {SELF_REGISTER_ROLES.map((r) => (
                     <option key={r.value} value={r.value}>
@@ -149,7 +149,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => setMode(mode === "login" ? "register" : "login")}
-            className="mt-4 w-full text-center text-sm text-blue-600 hover:underline dark:text-blue-400"
+            className="mt-4 w-full text-center text-sm text-blue-600 hover:underline"
           >
             {mode === "login"
               ? "Need an account? Register"

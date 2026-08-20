@@ -48,9 +48,9 @@ export default function LandingPage() {
   const { user, loading } = useAuth();
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-slate-900 dark:bg-slate-950">
+      <header className="sticky top-0 z-50 bg-slate-900">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
           <div className="flex items-center gap-3">
             <Image
@@ -98,7 +98,7 @@ export default function LandingPage() {
         {/* Hero */}
         <section className="relative overflow-hidden">
           <div
-            className="pointer-events-none absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
+            className="pointer-events-none absolute inset-0 opacity-[0.03][0.05]"
             style={{
               backgroundImage:
                 "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
@@ -108,20 +108,20 @@ export default function LandingPage() {
 
           <div className="relative mx-auto max-w-6xl px-6 pb-20 pt-20 sm:pt-28 lg:pt-32">
             <div className="mx-auto max-w-3xl text-center">
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-blue-700 dark:border-blue-800 dark:bg-blue-500/10 dark:text-blue-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-400" />
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-blue-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
                 Apparel Sourcing Platform
               </div>
 
-              <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl dark:text-slate-50">
+              <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
                 From PO to{" "}
-                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-indigo-400">
+                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                   shipment
                 </span>
                 ,<br className="hidden sm:block" /> managed in one place
               </h1>
 
-              <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-slate-600 dark:text-slate-400">
+              <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-slate-600">
                 Auvera Studio Limited manages the full apparel sourcing lifecycle
                 &mdash; from purchase order ingestion through factory coordination
                 to final shipment documentation. One platform, every detail.
@@ -148,12 +148,12 @@ export default function LandingPage() {
               {STATS.map((s) => (
                 <div
                   key={s.label}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-4 text-center shadow-sm"
                 >
-                  <div className="text-xl font-bold text-slate-900 dark:text-slate-50">
+                  <div className="text-xl font-bold text-slate-900">
                     {s.value}
                   </div>
-                  <div className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <div className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-slate-400">
                     {s.label}
                   </div>
                 </div>
@@ -163,13 +163,13 @@ export default function LandingPage() {
         </section>
 
         {/* Services */}
-        <section className="border-t border-slate-100 bg-slate-50/50 dark:border-slate-800/50 dark:bg-slate-900/30">
+        <section className="border-t border-slate-100 bg-slate-50/50">
           <div className="mx-auto max-w-6xl px-6 py-20 sm:py-24">
             <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-slate-50">
+              <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                 Everything you need to run apparel logistics
               </h2>
-              <p className="mt-3 text-slate-500 dark:text-slate-400">
+              <p className="mt-3 text-slate-500">
                 Built specifically for garment buying houses managing
                 buyer&ndash;factory&ndash;shipping workflows.
               </p>
@@ -181,15 +181,15 @@ export default function LandingPage() {
                 return (
                   <div
                     key={s.title}
-                    className="group rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
+                    className="group rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md:border-slate-700"
                   >
-                    <div className="mb-4 inline-flex rounded-lg bg-blue-50 p-2.5 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white dark:bg-blue-500/10 dark:text-blue-400 dark:group-hover:bg-blue-600 dark:group-hover:text-white">
+                    <div className="mb-4 inline-flex rounded-lg bg-blue-50 p-2.5 text-blue-600 transition group-hover:bg-blue-600 group-hover:text-white:bg-blue-600:text-white">
                       <Icon size={20} />
                     </div>
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-50">
+                    <h3 className="font-semibold text-slate-900">
                       {s.title}
                     </h3>
-                    <p className="mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+                    <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
                       {s.desc}
                     </p>
                   </div>
@@ -200,13 +200,13 @@ export default function LandingPage() {
         </section>
 
         {/* How It Works */}
-        <section className="border-t border-slate-200 dark:border-slate-800">
+        <section className="border-t border-slate-200">
           <div className="mx-auto max-w-6xl px-6 py-20 sm:py-24">
             <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-slate-50">
+              <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                 How it works
               </h2>
-              <p className="mt-3 text-slate-500 dark:text-slate-400">
+              <p className="mt-3 text-slate-500">
                 Three steps from paperwork to a fully tracked shipment.
               </p>
             </div>
@@ -230,13 +230,13 @@ export default function LandingPage() {
                 },
               ].map((item) => (
                 <div key={item.step} className="text-center">
-                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border-2 border-blue-200 text-sm font-bold text-blue-600 dark:border-blue-800 dark:text-blue-400">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border-2 border-blue-200 text-sm font-bold text-blue-600">
                     {item.step}
                   </div>
-                  <h3 className="font-semibold text-slate-900 dark:text-slate-50">
+                  <h3 className="font-semibold text-slate-900">
                     {item.title}
                   </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+                  <p className="mt-2 text-sm leading-relaxed text-slate-500">
                     {item.desc}
                   </p>
                 </div>
@@ -246,18 +246,18 @@ export default function LandingPage() {
         </section>
 
         {/* Roles & Security */}
-        <section className="border-t border-slate-100 bg-slate-50/50 dark:border-slate-800/50 dark:bg-slate-900/30">
+        <section className="border-t border-slate-100 bg-slate-50/50">
           <div className="mx-auto max-w-6xl px-6 py-20 sm:py-24">
             <div className="mx-auto max-w-4xl">
               <div className="grid items-center gap-10 sm:grid-cols-2">
                 <div>
-                  <div className="mb-4 inline-flex rounded-lg bg-blue-50 p-2.5 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+                  <div className="mb-4 inline-flex rounded-lg bg-blue-50 p-2.5 text-blue-600">
                     <Shield size={20} />
                   </div>
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-slate-50">
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                     Role-based access for every team member
                   </h2>
-                  <p className="mt-3 text-slate-500 dark:text-slate-400">
+                  <p className="mt-3 text-slate-500">
                     Four roles, each with precisely scoped permissions. Every field
                     change is logged in a per-field audit trail.
                   </p>
@@ -271,11 +271,11 @@ export default function LandingPage() {
                     ].map((item) => (
                       <li
                         key={item}
-                        className="flex items-start gap-2.5 text-sm text-slate-600 dark:text-slate-400"
+                        className="flex items-start gap-2.5 text-sm text-slate-600"
                       >
                         <CheckCircle2
                           size={16}
-                          className="mt-0.5 shrink-0 text-blue-600 dark:text-blue-400"
+                          className="mt-0.5 shrink-0 text-blue-600"
                         />
                         {item}
                       </li>
@@ -283,35 +283,35 @@ export default function LandingPage() {
                   </ul>
                 </div>
 
-                <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="space-y-4">
                     {[
                       {
                         role: "Admin",
                         access: "Full Access",
-                        color: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/30",
+                        color: "bg-red-50 text-red-700 ring-red-200",
                       },
                       {
                         role: "CEO",
                         access: "Order Details + Audit",
-                        color: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/30",
+                        color: "bg-amber-50 text-amber-700 ring-amber-200",
                       },
                       {
                         role: "Shipping Manager",
                         access: "Operational Data",
-                        color: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/30",
+                        color: "bg-emerald-50 text-emerald-700 ring-emerald-200",
                       },
                       {
                         role: "Merchant",
                         access: "Upload + View Orders",
-                        color: "bg-blue-50 text-blue-700 ring-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/30",
+                        color: "bg-blue-50 text-blue-700 ring-blue-200",
                       },
                     ].map((r) => (
                       <div
                         key={r.role}
-                        className="flex items-center justify-between rounded-lg border border-slate-100 px-4 py-3 dark:border-slate-800"
+                        className="flex items-center justify-between rounded-lg border border-slate-100 px-4 py-3"
                       >
-                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        <span className="text-sm font-medium text-slate-900">
                           {r.role}
                         </span>
                         <span
@@ -329,12 +329,12 @@ export default function LandingPage() {
         </section>
 
         {/* CTA */}
-        <section className="border-t border-slate-200 dark:border-slate-800">
+        <section className="border-t border-slate-200">
           <div className="mx-auto max-w-6xl px-6 py-20 text-center sm:py-24">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-slate-50">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
               Ready to streamline your shipments?
             </h2>
-            <p className="mx-auto mt-3 max-w-md text-slate-500 dark:text-slate-400">
+            <p className="mx-auto mt-3 max-w-md text-slate-500">
               Sign in to access the Order &amp; Shipment Tracker.
             </p>
             <div className="mt-8">
@@ -356,7 +356,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-slate-200 dark:border-slate-800">
+      <footer className="border-t border-slate-200">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
           <div className="flex items-center gap-2">
             <Image
@@ -366,11 +366,11 @@ export default function LandingPage() {
               height={20}
               className="h-5 w-5 rounded object-contain"
             />
-            <span className="text-xs text-slate-400 dark:text-slate-500">
+            <span className="text-xs text-slate-400">
               &copy; {new Date().getFullYear()} Auvera Studio Limited
             </span>
           </div>
-          <span className="text-xs text-slate-400 dark:text-slate-500">
+          <span className="text-xs text-slate-400">
             Apparel Sourcing &amp; Shipment Management
           </span>
         </div>
