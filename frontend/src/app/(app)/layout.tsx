@@ -13,6 +13,7 @@ import {
   canViewTracker,
   canUpload,
   canEditOrderDetails,
+  canViewCustomers,
 } from "@/lib/permissions";
 
 const NAV: { href: string; label: string; show: (r: Role) => boolean }[] = [
@@ -20,6 +21,7 @@ const NAV: { href: string; label: string; show: (r: Role) => boolean }[] = [
   { href: "/tracker", label: "Shipment Tracker", show: canViewTracker },
   { href: "/upload", label: "Upload Sheets", show: canUpload },
   { href: "/manual", label: "Manual Entry", show: canEditOrderDetails },
+  { href: "/customers", label: "Customers", show: canViewCustomers },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

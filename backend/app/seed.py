@@ -8,7 +8,7 @@ handy for local/testing, leave it off in production.
 import os
 
 from app.database import Base, SessionLocal, engine
-from app.models import User
+from app.models import Customer, User
 from app.security import hash_password, verify_password
 
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@example.com")
@@ -21,6 +21,15 @@ DEMO_USERS = [
     ("ceo@example.com", "ceo12345", "Casey (CEO)", "ceo"),
     ("shipping@example.com", "ship12345", "Sam (Shipping Manager)", "shipping_manager"),
     ("merchant@example.com", "merch12345", "Morgan (Merchant)", "merchant"),
+]
+
+# (name, address, vat_number)
+SEED_CUSTOMERS = [
+    (
+        "Roman Originals PLC",
+        "Unit 1, Vantage Point, 5 Wingfoot Close, Birmingham. B24 9JH",
+        "GB 111 3607 23",
+    ),
 ]
 
 
@@ -52,6 +61,11 @@ def main() -> None:
         if SEED_DEMO_USERS:
             for email, password, name, role in DEMO_USERS:
                 _ensure(db, email, password, name, role)
+        # Seed default customers (idempotent — skipped if name already exists)
+        for name, address, vat in SEED_CUSTOMERS:
+            if not db.query(Customer).filter(Customer.name == name).first():
+                db.add(Customer(name=name, address=address, vat_number=vat))
+                print(f"Created customer: {name}")
         db.commit()
     finally:
         db.close()

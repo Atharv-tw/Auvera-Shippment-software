@@ -49,3 +49,15 @@ def require_audit(user: User = Depends(get_current_user)) -> User:
     if not permissions.can_view_audit(user.role):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to view the audit trail")
     return user
+
+
+def require_customer_view(user: User = Depends(get_current_user)) -> User:
+    if not permissions.can_view_customers(user.role):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to view customers")
+    return user
+
+
+def require_customer_manage(user: User = Depends(get_current_user)) -> User:
+    if not permissions.can_manage_customers(user.role):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to manage customers")
+    return user

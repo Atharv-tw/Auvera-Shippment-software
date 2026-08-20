@@ -147,6 +147,25 @@ class AuditEntryOut(BaseModel):
 
 # --- upload results ------------------------------------------------------------
 
+# --- customers ----------------------------------------------------------------
+
+class CustomerCreate(BaseModel):
+    name: str
+    address: str | None = None
+    vat_number: str | None = None
+
+
+class CustomerOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    address: str | None = None
+    vat_number: str | None = None
+    created_at: datetime | None = None
+
+
+# --- upload results ------------------------------------------------------------
+
 class UploadFileResult(BaseModel):
     filename: str
     kind: str | None = None  # customer | vendor

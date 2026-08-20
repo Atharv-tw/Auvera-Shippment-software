@@ -113,3 +113,11 @@ export interface UploadFileResult {
 export interface UploadResponse {
   results: UploadFileResult[];
 }
+
+export interface Customer {
+  id: number;
+  name: string;
+  address: string | null;
+  vat_number: string | null;
+  created_at: string | null;
+}

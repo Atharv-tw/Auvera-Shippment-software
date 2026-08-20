@@ -47,6 +47,14 @@ def can_view_audit(role: str) -> bool:
     return role in (ADMIN, CEO)
 
 
+def can_view_customers(role: str) -> bool:
+    return role in (ADMIN, CEO)
+
+
+def can_manage_customers(role: str) -> bool:
+    return role == ADMIN
+
+
 def can_delete(role: str) -> bool:
     return role == ADMIN
 

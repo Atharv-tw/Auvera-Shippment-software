@@ -174,3 +174,16 @@ class AuditLog(Base):
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     user_name: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+# --- customers ----------------------------------------------------------------
+
+class Customer(Base, TimestampMixin):
+    """Customer master record: name, address and VAT number."""
+
+    __tablename__ = "customers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    address: Mapped[str | None] = mapped_column(Text)
+    vat_number: Mapped[str | None] = mapped_column(String(64))

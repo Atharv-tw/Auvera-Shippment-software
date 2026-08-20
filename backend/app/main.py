@@ -33,8 +33,9 @@ def health():
     return {"status": "ok"}
 
 
-from app.routers import auth, orders, tracker  # noqa: E402
+from app.routers import auth, customers, orders, tracker  # noqa: E402
 
 app.include_router(auth.router)
+app.include_router(customers.router)
 app.include_router(orders.router)
 app.include_router(tracker.router)
