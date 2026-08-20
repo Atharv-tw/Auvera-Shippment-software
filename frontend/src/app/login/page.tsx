@@ -45,50 +45,21 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Left branding panel */}
-      <div className="hidden flex-col justify-between bg-slate-900 p-10 lg:flex lg:w-1/2">
-        <div>
-          <div className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Auvera Studio Limited"
-              width={40}
-              height={40}
-              className="h-10 w-10 rounded-lg object-contain"
-            />
-            <div>
-              <div className="text-sm font-bold text-white">Auvera Studio Limited</div>
-              <div className="text-[11px] font-medium uppercase tracking-widest text-slate-400">
-                Apparel Sourcing
-              </div>
+      <div className="hidden flex-col items-center justify-center bg-slate-900 p-10 lg:flex lg:w-1/2">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Image
+            src="/logo.png"
+            alt="Auvera Studio Limited"
+            width={80}
+            height={80}
+            className="h-20 w-20 rounded-2xl object-contain"
+          />
+          <div>
+            <div className="text-lg font-bold text-white">Auvera Studio Limited</div>
+            <div className="mt-1 text-[11px] font-medium uppercase tracking-widest text-slate-400">
+              Apparel Sourcing
             </div>
           </div>
-        </div>
-
-        <div className="max-w-md">
-          <h2 className="text-3xl font-bold leading-tight text-white">
-            Order &amp; Shipment Tracker
-          </h2>
-          <p className="mt-4 text-base leading-relaxed text-slate-400">
-            Manage the full apparel sourcing lifecycle &mdash; from purchase
-            orders through factory coordination to final shipment documentation.
-          </p>
-          <div className="mt-8 grid grid-cols-2 gap-4">
-            {[
-              { label: "Orders", value: "Buyer + Vendor" },
-              { label: "Tracker Columns", value: "56" },
-              { label: "Payment", value: "LC / TT / DA / DP" },
-              { label: "Roles", value: "4" },
-            ].map((s) => (
-              <div key={s.label} className="rounded-lg border border-slate-700/50 bg-slate-800/50 px-4 py-3">
-                <div className="text-lg font-bold text-white">{s.value}</div>
-                <div className="text-[11px] uppercase tracking-wider text-slate-500">{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="text-xs text-slate-500">
-          &copy; {new Date().getFullYear()} Auvera Studio Limited
         </div>
       </div>
 
