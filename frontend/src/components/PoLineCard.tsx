@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { api, ApiError } from "@/lib/api";
 import { Info } from "lucide-react";
-import { canEditField, canViewAudit, lockReason } from "@/lib/permissions";
+import { canViewAudit, lockReason } from "@/lib/permissions";
 import { AuditDrawer } from "@/components/AuditDrawer";
 import { Badge, Button, ErrorNote } from "@/components/ui";
 import { clsx } from "@/components/clsx";
@@ -119,13 +119,13 @@ export function PoLineCard({
     }
   };
 
-  const anyEditable = fields.some((f) => canEditField(role, f));
+  const anyEditable = fields.some((f) => f.editable);
 
   /** One field tile. Shared by the section grids and Quick view, so a field
    * looks and behaves identically wherever it appears. */
   const renderField = (f: PoFieldSpec) => {
-    const locked = lockReason(role, f);
-    const canEdit = editing && canEditField(role, f);
+    const locked = lockReason(f);
+    const canEdit = editing && f.editable;
     // the same rules the grid uses; suppressed while editing, where the tint
     // would fight the input styling
     const flag = editing ? null : fieldFlag(f.key, raw(f), line.tracker);
