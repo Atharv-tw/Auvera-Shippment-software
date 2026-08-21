@@ -14,7 +14,7 @@ import {
 import { api, ApiError } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import type { Role, TrackerColumn, TrackerRow } from "@/lib/types";
-import { canEditField, canUseExcelView } from "@/lib/permissions";
+import { canEditField, canUseExcelView, lockReason } from "@/lib/permissions";
 import { Button, ErrorNote } from "@/components/ui";
 import { toDisplayDate, toIsoDate } from "@/lib/dateFormat";
 
@@ -56,19 +56,33 @@ export function TrackerGrid({
 
   const columnDefs: ColDef[] = useMemo(
     () =>
-      columns.map((c) => ({
+      columns.map((c) => {
+        const canEditThis = canUseExcelView(role) && canEditField(role, c);
+        // While editing, a column this role cannot write is greyed out and
+        // says why on hover - otherwise the only way to find out is to
+        // double-click it and watch nothing happen.
+        const locked = editing && !canEditThis;
+        const reason = lockReason(role, c);
+        return {
         field: c.key,
         headerName: c.label,
-        editable: editing && canUseExcelView(role) && canEditField(role, c),
+        editable: editing && canEditThis,
         minWidth: 130,
-        headerClass:
+        cellClass: locked ? "tg-locked" : undefined,
+        headerClass: [
           c.source === "buyer"
             ? "tg-head-buyer"
             : c.source === "vendor"
               ? "tg-head-vendor"
               : c.source === "calc" || c.source === "const"
                 ? "tg-head-derived"
-                : undefined,
+                : "",
+          locked ? "tg-head-locked" : "",
+        ].filter(Boolean).join(" ") || undefined,
+        headerTooltip: locked ? reason ?? "Read-only for your role" : undefined,
+        tooltipValueGetter: locked
+          ? () => reason ?? "Read-only for your role"
+          : undefined,
         cellEditor:
           c.type === "number"
             ? "agNumberCellEditor"
@@ -81,7 +95,8 @@ export function TrackerGrid({
               cellEditorParams: { useFormatter: true },
             }
           : {}),
-      })),
+        } as ColDef;
+      }),
     [columns, editing, role],
   );
 
@@ -146,7 +161,7 @@ export function TrackerGrid({
       <div className="flex items-center gap-2">
         <p className="text-xs text-slate-500">
           {editing
-            ? "Double-click a cell to edit, or select it and press Delete to clear. Blue = buyer, green = vendor, grey = derived."
+            ? "Double-click a cell to edit, or select it and press Delete to clear. Blue = buyer, green = vendor, grey = derived. Hatched columns are read-only for your role — hover one to see why."
             : "Read-only view. " + (canEdit ? "Click Edit to change values." : "")}
         </p>
         <div className="ml-auto flex gap-2">
@@ -169,7 +184,26 @@ export function TrackerGrid({
         </div>
       </div>
       {error && <ErrorNote message={error} />}
-      <style>{`.tg-head-buyer{background:#eff6ff}.tg-head-vendor{background:#ecfdf5}.tg-head-derived{background:#f8fafc;font-style:italic}`}</style>
+      <style>{`
+        .tg-head-buyer{background:#eff6ff}
+        .tg-head-vendor{background:#ecfdf5}
+        .tg-head-derived{background:#f8fafc;font-style:italic}
+        /* Read-only for this role: faint diagonal hatching reads as "not
+           available" even to someone who cannot pick the grey out. */
+        .tg-locked{
+          color:#94a3b8;
+          cursor:not-allowed;
+          background-image:repeating-linear-gradient(45deg,rgba(100,116,139,.10) 0 4px,transparent 4px 8px);
+        }
+        .tg-head-locked{opacity:.7}
+        .dark .tg-head-buyer{background:#172554}
+        .dark .tg-head-vendor{background:#052e2b}
+        .dark .tg-head-derived{background:#0f172a;font-style:italic}
+        .dark .tg-locked{
+          color:#64748b;
+          background-image:repeating-linear-gradient(45deg,rgba(148,163,184,.12) 0 4px,transparent 4px 8px);
+        }
+      `}</style>
       <div style={{ height }}>
         <AgGridReact
           key={gridEpoch}
@@ -177,6 +211,7 @@ export function TrackerGrid({
           columnDefs={columnDefs}
           rowData={rowData}
           defaultColDef={{ resizable: true, sortable: true, filter: false }}
+          enableBrowserTooltips
           onCellValueChanged={onCellValueChanged}
           onCellKeyDown={onCellKeyDown}
           animateRows={false}
