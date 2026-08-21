@@ -105,9 +105,9 @@ export function PoLineCard({
           </>
         )}
         {line.article && (
-          <span className="text-xs text-slate-400">
+          <span className="text-sm text-slate-500 dark:text-slate-400">
             Article{" "}
-            <span className="font-medium text-slate-600 dark:text-slate-300">
+            <span className="font-semibold text-slate-900 dark:text-slate-100">
               {line.article}
             </span>
           </span>
@@ -157,7 +157,7 @@ export function PoLineCard({
                 aria-label={`${g.label} (${isOpen ? "collapse" : "expand"})`}
                 aria-expanded={isOpen}
                 onClick={() => setClosed((c) => ({ ...c, [g.key]: !c[g.key] }))}
-                className="mb-2 flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white"
+                className="mb-2 flex cursor-pointer items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-slate-900 hover:text-blue-600 dark:text-slate-100 dark:hover:text-blue-400"
               >
                 <span>{g.label}</span>
                 <span
@@ -171,7 +171,7 @@ export function PoLineCard({
                 >
                   {pct}%
                 </span>
-                <span className="text-[10px] font-normal text-slate-400">
+                <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
                   {isOpen ? "▾" : "▸"}
                 </span>
               </button>
@@ -191,7 +191,7 @@ export function PoLineCard({
                           className="rounded-md border border-slate-100 p-2 dark:border-slate-800"
                         >
                           <div className="flex items-center gap-1">
-                            <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
                               {f.label}
                             </span>
                             {editing && locked && (
