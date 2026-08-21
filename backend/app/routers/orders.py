@@ -9,13 +9,15 @@ from app.dependencies import get_current_user, require_upload
 from app.models import Order, User, VendorOrder
 from app.schemas import (
     OrderOut,
+    SeasonSuggestion,
     UploadFileResult,
     UploadResponse,
     VendorOrderOut,
 )
 from app.services import reconcile
+from app.services import seasons as sn
 from app.services.order_parser import (
-    detect_kind,
+    detect_kind_detail,
     parse_customer_order,
     parse_vendor_order,
 )
@@ -37,6 +39,7 @@ def upload_orders(
     Order/VendorOrder record and its lines are reconciled into the tracker.
     """
     results: list[UploadFileResult] = []
+    touched_pos: list[str] = []
     for f in files:
         name = f.filename or "upload.xlsx"
         if not name.lower().endswith(".xlsx"):
@@ -51,20 +54,27 @@ def upload_orders(
         try:
             path = save_upload(content)
             try:
-                kind = detect_kind(path, name_hint=name)
+                # the sheet's own layout decides buyer vs vendor, not its filename
+                detected = detect_kind_detail(path, name_hint=name)
+                kind = detected["kind"]
                 if kind == "vendor":
                     parsed = parse_vendor_order(path)
                     orders, touched, warnings = reconcile.import_vendor_order(db, parsed, name, user.id, user.name)
+                    touched_pos += [o.order_number for o in orders if o.order_number]
                     results.append(UploadFileResult(
                         filename=name, kind="vendor", status="created",
+                        kind_confidence=detected["confidence"], kind_reason=detected["reason"],
                         order_ids=[o.id for o in orders], tracker_rows_touched=touched,
                         warnings=warnings,
                     ))
                 else:
                     parsed = parse_customer_order(path)
                     order, touched, warnings = reconcile.import_customer_order(db, parsed, name, user.id, user.name)
+                    if order.order_number:
+                        touched_pos.append(order.order_number)
                     results.append(UploadFileResult(
                         filename=name, kind="customer", status="created",
+                        kind_confidence=detected["confidence"], kind_reason=detected["reason"],
                         order_ids=[order.id], tracker_rows_touched=touched,
                         warnings=warnings,
                     ))
@@ -74,7 +84,13 @@ def upload_orders(
         except Exception as exc:  # noqa: BLE001 - surface parse failures per file
             db.rollback()
             results.append(UploadFileResult(filename=name, status="error", error=str(exc)))
-    return UploadResponse(results=results)
+
+    # every PO this upload touched, with the season we think it belongs to, for
+    # the merchant to confirm. The import is never blocked on this.
+    suggestions = [
+        SeasonSuggestion(**sn.suggest_for_po(db, po)) for po in sorted(set(touched_pos))
+    ]
+    return UploadResponse(results=results, seasons=suggestions)
 
 
 @router.get("/orders", response_model=list[OrderOut])
