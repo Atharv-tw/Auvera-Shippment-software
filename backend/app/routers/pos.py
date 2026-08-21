@@ -93,13 +93,24 @@ def _parent_of(db: Session, buyer_line, vendor_line):
     return None
 
 
-def _editable_keys(role: str) -> list[str]:
-    return sorted(
-        permissions.editable_tracker_keys(role) | permissions.editable_line_keys(role)
-    )
+def _po_field_specs(role: str) -> list[PoFieldSpec]:
+    """Every PO field, each carrying whether *this* role may write it.
+
+    A PO field is stored either on the tracker row or on the order line behind
+    it, and the two are gated separately, so each field is checked against the
+    set for its own origin.
+    """
+    allowed = {
+        "tracker": permissions.editable_tracker_keys(role),
+        "order_line": permissions.editable_line_keys(role),
+    }
+    return [
+        PoFieldSpec(**f, editable=f["key"] in allowed[f["origin"]])
+        for f in fg.po_field_specs()
+    ]
 
 
-def _line_out(db: Session, row: TrackerRow, role: str) -> PoLineOut:
+def _line_out(db: Session, row: TrackerRow) -> PoLineOut:
     buyer_line, vendor_line = _lines_for(db, row)
     source = buyer_line or vendor_line
     parent = _parent_of(db, buyer_line, vendor_line)
@@ -114,17 +125,14 @@ def _line_out(db: Session, row: TrackerRow, role: str) -> PoLineOut:
         line=_line_payload(source),
         sizes=(source.sizes if source is not None else {}) or {},
         size_header=(parent.size_header if parent is not None else []) or [],
-        editable_keys=_editable_keys(role),
     )
 
 
 @router.get("/schema", response_model=PoSchemaOut)
-def po_schema(_user: User = Depends(require_po_view)):
-    """Every field the PO view shows, and which of the four sections it sits in."""
-    return PoSchemaOut(
-        groups=fg.GROUPS,
-        fields=[PoFieldSpec(**f) for f in fg.po_field_specs()],
-    )
+def po_schema(user: User = Depends(require_po_view)):
+    """Every field the PO view shows, which of the four sections it sits in,
+    and whether the caller may edit it."""
+    return PoSchemaOut(groups=fg.GROUPS, fields=_po_field_specs(user.role))
 
 
 @router.get("", response_model=list[PoSummaryOut])
@@ -174,7 +182,7 @@ def list_pos(
 def get_po(
     buyer_po: str,
     db: Session = Depends(get_db),
-    user: User = Depends(require_po_view),
+    _user: User = Depends(require_po_view),
 ):
     rows = (
         db.query(TrackerRow)
@@ -203,7 +211,7 @@ def get_po(
         customer_name=_first(rows, "customer_name"),
         season=_season_out(db.query(POSeason).filter(POSeason.buyer_po == buyer_po).first()),
         headers=headers,
-        lines=[_line_out(db, row, user.role) for row in rows],
+        lines=[_line_out(db, row) for row in rows],
         totals={
             "order_qty": sum(_num((r.data or {}).get("order_qty")) for r in rows),
             "ship_qty": sum(_num((r.data or {}).get("ship_qty")) for r in rows),
@@ -302,4 +310,4 @@ def update_po_row(
 
     db.commit()
     db.refresh(row)
-    return _line_out(db, row, user.role)
+    return _line_out(db, row)
