@@ -16,6 +16,7 @@ from app.models import AuditLog, TrackerRow, User
 from app.schemas import (
     AuditEntryOut,
     TrackerColumnOut,
+    TrackerExportRequest,
     TrackerRowBulkUpdate,
     TrackerRowCreate,
     TrackerRowOut,
@@ -130,6 +131,37 @@ def list_tracker(
     if limit is not None:
         q = q.limit(limit)
     return q.all()
+
+
+@router.post("/export")
+def export_tracker_view(
+    body: TrackerExportRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_tracker_view),
+):
+    """Export the current view - the filtered rows, the visible columns, in the
+    order they are on screen. This is the escape hatch that removes the last
+    reason to rebuild the sheet by hand in Excel."""
+    q = db.query(TrackerRow)
+    if body.row_ids is not None:
+        q = q.filter(TrackerRow.id.in_(body.row_ids))
+    rows = q.all()
+
+    if body.row_ids is not None:
+        # preserve the on-screen order, which the IN clause does not
+        position = {row_id: i for i, row_id in enumerate(body.row_ids)}
+        rows.sort(key=lambda r: position.get(r.id, len(position)))
+    else:
+        rows.sort(key=lambda r: (r.buyer_po or "", r.style_no or "", r.colour or ""))
+
+    keys = [k for k in (body.keys or []) if k in tm.COL_BY_KEY] or None
+    data = tracker_workbook_bytes(rows, keys)
+    filename = f"Shipment Tracker - {datetime.now():%d-%m-%Y}.xlsx"
+    return Response(
+        content=data,
+        media_type=_XLSX_MIME,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/{row_id}", response_model=TrackerRowOut)

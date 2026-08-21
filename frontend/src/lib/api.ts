@@ -80,11 +80,17 @@ export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
   return res.json();
 }
 
-export async function apiDownload(path: string, filename: string) {
+export async function apiDownload(path: string, filename: string, body?: unknown) {
   const headers: Record<string, string> = {};
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { headers });
+  // a body means POST: exporting the current view sends the filtered row ids,
+  // which is far past what a query string can carry
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers,
+    ...(body !== undefined ? { method: "POST", body: JSON.stringify(body) } : {}),
+  });
   if (!res.ok) await parseError(res);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);

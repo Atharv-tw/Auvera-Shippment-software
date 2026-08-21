@@ -31,7 +31,25 @@ def _as_date(value):
     return value
 
 
-def build_tracker_workbook(rows) -> Workbook:
+def build_tracker_workbook(rows, keys: list[str] | None = None) -> Workbook:
+    """The tracker as a workbook.
+
+    With no ``keys`` this is the full 56-column sheet, each column at its
+    canonical letter, which is what the shipping team's own file looks like.
+    Given ``keys`` it exports just those columns packed contiguously from A -
+    a filtered export should read like a normal sheet, not the full template
+    with holes punched in it.
+    """
+    subset = keys is not None
+    columns = (
+        [c for c in TRACKER_COLUMNS if c["key"] in set(keys)] if subset else TRACKER_COLUMNS
+    )
+    # position -> Excel column index; contiguous when a subset was asked for
+    index_of = {
+        c["key"]: (i + 1 if subset else column_index_from_string(c["col"]))
+        for i, c in enumerate(columns)
+    }
+
     wb = Workbook()
     ws = wb.active
     ws.title = SHEET_TITLE
@@ -41,25 +59,25 @@ def build_tracker_workbook(rows) -> Workbook:
     wrap = Alignment(wrap_text=True, vertical="center")
 
     # header row
-    for c in TRACKER_COLUMNS:
-        cell = ws.cell(row=_HEADER_ROW, column=column_index_from_string(c["col"]), value=c["label"])
+    for c in columns:
+        cell = ws.cell(row=_HEADER_ROW, column=index_of[c["key"]], value=c["label"])
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = wrap
 
-    subtotals: dict[str, float] = {k: 0.0 for k in _SUBTOTAL_KEYS}
+    subtotals: dict[str, float] = {k: 0.0 for k in _SUBTOTAL_KEYS if k in index_of}
 
     # data rows
     for i, row in enumerate(rows):
         r = _DATA_START + i
         data = row.data if hasattr(row, "data") else row.get("data", {})
         data = data or {}
-        for col in TRACKER_COLUMNS:
+        for col in columns:
             key = col["key"]
             val = data.get(key)
             if val is None or val == "":
                 continue
-            idx = column_index_from_string(col["col"])
+            idx = index_of[key]
             if TYPE_BY_KEY[key] == "date":
                 dv = _as_date(val)
                 cell = ws.cell(row=r, column=idx, value=dv)
@@ -80,15 +98,14 @@ def build_tracker_workbook(rows) -> Workbook:
     # sub-total row
     ws.cell(row=1, column=1, value="Sub Total").font = Font(bold=True, size=9)
     for key, total in subtotals.items():
-        col = next(c["col"] for c in TRACKER_COLUMNS if c["key"] == key)
-        ws.cell(row=1, column=column_index_from_string(col), value=round(total, 2)).font = Font(bold=True, size=9)
+        ws.cell(row=1, column=index_of[key], value=round(total, 2)).font = Font(bold=True, size=9)
 
     ws.freeze_panes = "A3"
     return wb
 
 
-def tracker_workbook_bytes(rows) -> bytes:
-    wb = build_tracker_workbook(rows)
+def tracker_workbook_bytes(rows, keys: list[str] | None = None) -> bytes:
+    wb = build_tracker_workbook(rows, keys)
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()

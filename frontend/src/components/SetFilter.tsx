@@ -13,6 +13,32 @@ import type { IRowNode } from "ag-grid-community";
 
 export type SetFilterModel = { values: string[] };
 
+/** Text filters also arrive on these columns - the chip bar emits
+ * `factory = CRIMSON` as a text model, and a saved view may carry one. Rather
+ * than let the two representations fight (or crash on a missing `values`),
+ * this filter understands both and renders the tick list either way. */
+type TextModel = { filterType?: string; type?: string; filter?: string };
+type IncomingModel = SetFilterModel | TextModel | null;
+
+function isSetModel(model: IncomingModel): model is SetFilterModel {
+  return !!model && Array.isArray((model as SetFilterModel).values);
+}
+
+function textMatches(model: TextModel, value: string): boolean {
+  const needle = String(model.filter ?? "").toLowerCase();
+  const hay = value.toLowerCase();
+  switch (model.type) {
+    case "notEqual": return hay !== needle;
+    case "contains": return hay.includes(needle);
+    case "notContains": return !hay.includes(needle);
+    case "startsWith": return hay.startsWith(needle);
+    case "endsWith": return hay.endsWith(needle);
+    case "blank": return value === BLANK;
+    case "notBlank": return value !== BLANK;
+    default: return hay === needle;
+  }
+}
+
 /** Empty cells are a value people filter on, so they need a name. Using a
  * sentinel rather than "" keeps them distinguishable from a real empty string. */
 const BLANK = "\u0000blank";
@@ -24,7 +50,7 @@ export function SetFilter({
   getValue,
   api,
   doesRowPassOtherFilter,
-}: CustomFilterProps<unknown, unknown, SetFilterModel>) {
+}: CustomFilterProps<unknown, unknown, IncomingModel>) {
   const [search, setSearch] = useState("");
 
   const asKey = useCallback(
@@ -36,7 +62,11 @@ export function SetFilter({
   );
 
   const doesFilterPass = useCallback(
-    ({ node }: { node: IRowNode }) => !model || model.values.includes(asKey(node)),
+    ({ node }: { node: IRowNode }) => {
+      if (!model) return true;
+      const value = asKey(node);
+      return isSetModel(model) ? model.values.includes(value) : textMatches(model, value);
+    },
     [model, asKey],
   );
 
@@ -44,6 +74,7 @@ export function SetFilter({
     doesFilterPass,
     getModelAsString: () => {
       if (!model) return "";
+      if (!isSetModel(model)) return `${model.type ?? "equals"} ${model.filter ?? ""}`.trim();
       const shown = model.values.map((v) => (v === BLANK ? BLANK_LABEL : v));
       return shown.length <= 2 ? shown.join(", ") : `${shown.length} selected`;
     },
@@ -71,11 +102,14 @@ export function SetFilter({
     return q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
   }, [options, search]);
 
-  // null model means "everything", which is also what an all-ticked list means
-  const selected = useMemo(
-    () => new Set(model ? model.values : options.map((o) => o.value)),
-    [model, options],
-  );
+  // null model means "everything", which is also what an all-ticked list means.
+  // A text model has no value list, so the ticks are derived from what it
+  // actually matches - the list then reads as the equivalent selection.
+  const selected = useMemo(() => {
+    if (!model) return new Set(options.map((o) => o.value));
+    if (isSetModel(model)) return new Set(model.values);
+    return new Set(options.filter((o) => textMatches(model, o.value)).map((o) => o.value));
+  }, [model, options]);
 
   const commit = (next: Set<string>) => {
     onModelChange(next.size === options.length ? null : { values: [...next] });

@@ -112,6 +112,17 @@ class TrackerColumnOut(BaseModel):
     aliases: list[str] = []
 
 
+class TrackerExportRequest(BaseModel):
+    """Export what is on screen rather than the whole table.
+
+    ``row_ids`` is the filtered set in the order the grid shows them; ``keys``
+    the visible columns. Either omitted means "all of them", so the plain
+    Download button still produces the full 56-column sheet.
+    """
+    row_ids: list[int] | None = None
+    keys: list[str] | None = None
+
+
 class TrackerRowOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

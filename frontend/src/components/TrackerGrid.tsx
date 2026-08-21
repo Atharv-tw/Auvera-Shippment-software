@@ -51,6 +51,7 @@ export function TrackerGrid({
   quickFilterText = "",
   visibleKeys = null,
   filterModel = null,
+  onApiReady,
 }: {
   rows: TrackerRow[];
   columns: TrackerColumn[];
@@ -62,6 +63,8 @@ export function TrackerGrid({
   visibleKeys?: string[] | null;
   /** Filter chips, already translated to an AG Grid filter model. */
   filterModel?: Record<string, unknown> | null;
+  /** Hands the grid API up so saved views can capture and restore column state. */
+  onApiReady?: (api: GridApi) => void;
 }) {
   const { theme } = useTheme();
   const canEdit = canUseExcelView(role);
@@ -214,16 +217,26 @@ export function TrackerGrid({
     });
   }, []);
 
-  // Chips and the floating filter row are one state, not two: applying chips
-  // writes into the same filter model the header row edits.
+  // Chips and the floating filter row are one state, not two: chips write into
+  // the same model the header row edits. Merged rather than replaced, and only
+  // the keys chips previously owned are withdrawn - otherwise adding a chip
+  // would silently wipe a filter the user had set by hand in the header row.
+  const chipFilterKeys = useRef<string[]>([]);
   useEffect(() => {
     const grid = apiRef.current;
     if (!grid) return;
-    grid.setFilterModel(filterModel && Object.keys(filterModel).length ? filterModel : null);
+    const next: Record<string, unknown> = { ...(grid.getFilterModel() ?? {}) };
+    for (const key of chipFilterKeys.current) {
+      if (!filterModel || !(key in filterModel)) delete next[key];
+    }
+    Object.assign(next, filterModel ?? {});
+    chipFilterKeys.current = Object.keys(filterModel ?? {});
+    grid.setFilterModel(Object.keys(next).length ? next : null);
   }, [filterModel]);
 
   const onGridReady = (event: GridReadyEvent) => {
     apiRef.current = event.api;
+    onApiReady?.(event.api);
     recomputeTotals();
   };
 

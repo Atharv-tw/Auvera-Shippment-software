@@ -13,7 +13,13 @@ export function isoToNumber(value: unknown): number | null {
   if (typeof value !== "string") return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
   if (!m) return null;
-  return Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]);
+  const year = Number(m[1]);
+  // Excel turns an empty date cell into serial 0, which reads back as
+  // 1900-01-0x. The real tracker is full of them - four of its seven rows carry
+  // 1900-01-07 in Docs Due Date - and treating those as genuinely overdue would
+  // light up most of the sheet amber for a value that means "blank".
+  if (year < 2000) return null;
+  return year * 10000 + Number(m[2]) * 100 + Number(m[3]);
 }
 
 function today(): number {
