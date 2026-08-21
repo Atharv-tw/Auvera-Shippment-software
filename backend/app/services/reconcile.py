@@ -15,9 +15,11 @@ from sqlalchemy.orm import Session
 
 from app.models import Order, OrderLine, TrackerRow, VendorOrder, VendorOrderLine
 from app.services import audit, tracker_map as tm
+from app.services.masters import upsert_customer_from_buyer_block, upsert_vendor_from_header
 
 _LINE_KEYS = [
-    "row_index", "order_date", "article", "description", "colour", "style_no",
+    "row_index", "order_date", "order_date_d", "raw",
+    "article", "description", "colour", "style_no",
     "topup", "lot", "garment_code", "sizes", "quantity", "price",
     "packing_method", "etd", "sleeve_length", "shoulder_pad", "hanger_foam",
     "composition", "lining", "brand", "swing_ticket_type", "label_extra",
@@ -26,6 +28,8 @@ _LINE_KEYS = [
 _HEADER_KEYS = [
     "order_number", "supplier", "code", "country_of_payment", "payment_terms",
     "currency", "terms_of_delivery", "factory_town", "port_of_loading", "buyer_block",
+    # everything the block header carried, and the size-ratio grid spec
+    "raw_header", "size_header",
 ]
 
 
@@ -106,9 +110,11 @@ def import_customer_order(
     user_id: int | None, user_name: str | None = None,
 ):
     header = parsed["header"]
+    customer = upsert_customer_from_buyer_block(db, header.get("buyer_block"))
     order = Order(
         **{k: header.get(k) for k in _HEADER_KEYS},
         is_confirmation=True,
+        customer_id=customer.id if customer else None,
         source_filename=filename,
         created_by=user_id,
     )
@@ -143,9 +149,11 @@ def import_vendor_order(
     touched: set[str] = set()
     for i, block in enumerate(parsed["blocks"]):
         header = block["header"]
+        vendor = upsert_vendor_from_header(db, header)
         vo = VendorOrder(
             **{k: header.get(k) for k in _HEADER_KEYS},
             block_index=i,
+            vendor_id=vendor.id if vendor else None,
             source_filename=filename,
             created_by=user_id,
         )
