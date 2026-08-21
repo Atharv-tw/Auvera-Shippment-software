@@ -19,6 +19,7 @@ export function PoLineCard({
   groups,
   fields,
   role,
+  showTitle = true,
   onSaved,
 }: {
   buyerPo: string;
@@ -26,6 +27,8 @@ export function PoLineCard({
   groups: { key: PoGroup; label: string }[];
   fields: PoFieldSpec[];
   role: Role;
+  /** off when a tab strip above already names the line */
+  showTitle?: boolean;
   onSaved: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -91,12 +94,16 @@ export function PoLineCard({
   return (
     <div className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-          {line.style_no ?? "—"} · {line.colour ?? "—"}
-        </h3>
+        {showTitle && (
+          <>
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+              {line.style_no ?? "—"} · {line.colour ?? "—"}
+            </h3>
+            {line.has_buyer && <Badge color="blue">buyer</Badge>}
+            {line.has_vendor && <Badge color="green">vendor</Badge>}
+          </>
+        )}
         {line.article && <span className="text-xs text-slate-400">{line.article}</span>}
-        {line.has_buyer && <Badge color="blue">buyer</Badge>}
-        {line.has_vendor && <Badge color="green">vendor</Badge>}
         <div className="ml-auto flex gap-2">
           {editing ? (
             <>
