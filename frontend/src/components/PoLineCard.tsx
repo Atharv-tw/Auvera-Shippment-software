@@ -35,8 +35,10 @@ export function PoLineCard({
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // every section collapses; only Product starts closed, since it carries the size grid
-  const [closed, setClosed] = useState<Record<string, boolean>>({ product: true });
+  // Every section collapses. Buyer and Vendor carry the order itself, so they
+  // open; Product and Shipping are detail you go looking for, so they don't.
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const openByDefault = (key: PoGroup) => key === "buyer" || key === "vendor";
 
   const byGroup = useMemo(() => {
     const map = new Map<PoGroup, PoFieldSpec[]>();
@@ -146,7 +148,7 @@ export function PoLineCard({
         {groups.map((g) => {
           const groupFields = byGroup.get(g.key) ?? [];
           if (groupFields.length === 0) return null;
-          const isOpen = !closed[g.key];
+          const isOpen = toggled[g.key] ?? openByDefault(g.key);
           // how much of the section is actually filled in — live, so it moves while editing
           const filled = groupFields.filter((f) => value(f) !== "").length;
           const pct = Math.round((filled / groupFields.length) * 100);
@@ -156,7 +158,7 @@ export function PoLineCard({
                 type="button"
                 aria-label={`${g.label} (${isOpen ? "collapse" : "expand"})`}
                 aria-expanded={isOpen}
-                onClick={() => setClosed((c) => ({ ...c, [g.key]: !c[g.key] }))}
+                onClick={() => setToggled((t) => ({ ...t, [g.key]: !isOpen }))}
                 className="mb-2 flex cursor-pointer items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-slate-900 hover:text-blue-600 dark:text-slate-100 dark:hover:text-blue-400"
               >
                 <span>{g.label}</span>
