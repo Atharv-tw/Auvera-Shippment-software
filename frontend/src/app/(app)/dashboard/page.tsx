@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Button, Card, Badge, Spinner, ErrorNote } from "@/components/ui";
-import { canViewTracker, canUpload, canEditOrderDetails } from "@/lib/permissions";
+import { canViewTracker, canUpload, canEditIdentity, canViewPos } from "@/lib/permissions";
 import type { Order, TrackerRow, VendorOrder } from "@/lib/types";
 
 function StatCard({ label, value }: { label: string; value: number | string }) {
@@ -39,12 +39,17 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">Dashboard</h1>
         <div className="flex gap-2">
+          {user && canViewPos(user.role) && (
+            <Link href="/pos">
+              <Button variant="secondary">Purchase orders</Button>
+            </Link>
+          )}
           {user && canUpload(user.role) && (
             <Link href="/upload">
               <Button>Upload sheets</Button>
             </Link>
           )}
-          {user && canEditOrderDetails(user.role) && (
+          {user && canEditIdentity(user.role) && (
             <Link href="/manual">
               <Button variant="secondary">New tracker row</Button>
             </Link>
@@ -93,7 +98,10 @@ export default function DashboardPage() {
               {(tracker.data ?? []).slice(0, 12).map((r) => (
                 <tr key={r.id} className="border-t border-slate-100 dark:border-slate-800">
                   <td className="py-2 pr-4">
-                    <Link href={`/tracker/${r.id}`} className="text-blue-600 hover:underline">
+                    <Link
+                      href={`/pos/${encodeURIComponent(r.buyer_po ?? "")}`}
+                      className="text-blue-600 hover:underline"
+                    >
                       {r.buyer_po}
                     </Link>
                   </td>
