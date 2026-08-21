@@ -90,7 +90,10 @@ def test_ceo_edits_everything_including_price(client):
     r = client.patch(f"/api/tracker/{rid}", json={"fields": {"order_qty": 123}},
                      headers=_auth(ceo))
     assert r.status_code == 200, r.text
-    assert str(r.json()["data"]["order_qty"]) == "123"
+    # compare the value, not its Python repr: order_qty is a Float column now, so
+    # it comes back as 123.0. JSON numbers are IEEE doubles, so the browser parses
+    # 123 and 123.0 to the same value - the string form was never the contract.
+    assert r.json()["data"]["order_qty"] == 123
     # operational is no longer off-limits to the CEO
     r = client.patch(f"/api/tracker/{rid}", json={"fields": {"container_no": "X"}},
                      headers=_auth(ceo))

@@ -41,7 +41,7 @@ def test_reimport_preserves_manual_edits(db):
     )
     row = db.query(TrackerRow).filter(TrackerRow.style_no == "17088908").first()
     # simulate a manual edit to an operational column + an imported column
-    row.data = {**row.data, "container_no": "ABCD1234567", "buyer_net_price": 99.0}
+    row.set_tracker_values({"container_no": "ABCD1234567", "buyer_net_price": 99.0})
     row.edited_keys = ["container_no", "buyer_net_price"]
     db.commit()
 

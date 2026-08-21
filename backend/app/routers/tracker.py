@@ -113,7 +113,7 @@ def create_tracker_row(
     match = tm.match_key(f.get("buyer_po"), f.get("style_no"), f.get("colour"))
     if db.query(TrackerRow).filter(TrackerRow.match_key == match).first():
         raise HTTPException(status.HTTP_409_CONFLICT, "A tracker row with this PO/Style/Colour already exists")
-    row = TrackerRow(match_key=match, data={}, edited_keys=[], has_buyer=True, created_by=user.id)
+    row = TrackerRow(match_key=match, raw={}, edited_keys=[], has_buyer=True, created_by=user.id)
     db.add(row)
     db.flush()  # obtain row.id for audit entries
     apply_tracker_fields(db, row, f, user, action="manual")

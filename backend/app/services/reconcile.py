@@ -62,7 +62,7 @@ def _upsert_tracker(
     if row is None:
         row = TrackerRow(
             match_key=match, buyer_po=buyer_po, style_no=style_no, colour=colour,
-            data={}, edited_keys=[], created_by=user_id,
+            raw={}, edited_keys=[], created_by=user_id,
         )
         db.add(row)
         db.flush()  # obtain row.id for audit entries
@@ -90,7 +90,8 @@ def _upsert_tracker(
         b, f = data.get("buyer_net_price"), data.get("factory_price")
         if b is not None and f is not None:
             data["price_difference"] = round(b - f, 4)
-    row.data = data
+    # one write path for the 56 columns; unmodelled keys fall through to raw
+    row.set_tracker_values(data)
     row.buyer_po = row.buyer_po or buyer_po
     row.style_no = row.style_no or style_no
     row.colour = row.colour or colour

@@ -82,7 +82,7 @@ def apply_tracker_fields(
         )
         data["price_difference"] = new_diff
 
-    row.data = data
+    row.set_tracker_values(data)
     row.edited_keys = sorted(edited)
     row.match_key = tm.match_key(row.buyer_po, row.style_no, row.colour)
     return changed
