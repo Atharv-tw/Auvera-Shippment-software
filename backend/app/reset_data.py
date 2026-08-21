@@ -14,10 +14,13 @@ from pathlib import Path
 from app.config import get_settings
 from app.database import Base, SessionLocal, engine
 from app.models import (
+    AuditLog,
     Customer,
     Order,
     OrderLine,
+    POSeason,
     TrackerRow,
+    Vendor,
     VendorOrder,
     VendorOrderLine,
 )
@@ -25,7 +28,11 @@ from app.models import (
 settings = get_settings()
 
 # child tables first so foreign-key references are cleared before their parents
-_MODELS = [TrackerRow, OrderLine, Order, VendorOrderLine, VendorOrder, Customer]
+_MODELS = [
+    AuditLog, POSeason, TrackerRow,
+    OrderLine, Order, VendorOrderLine, VendorOrder,
+    Customer, Vendor,
+]
 
 
 def reset(confirm: bool = True) -> None:
