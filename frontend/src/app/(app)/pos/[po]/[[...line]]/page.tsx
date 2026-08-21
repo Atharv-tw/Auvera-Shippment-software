@@ -1,12 +1,13 @@
 "use client";
 
-import { Suspense, use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canAssignSeason, canPaste, canViewPos } from "@/lib/permissions";
+import { poLinePath, safeDecode, segmentMatches } from "@/lib/routes";
 import { Badge, Button, Card, Select, Spinner, ErrorNote } from "@/components/ui";
 import { PoLineCard } from "@/components/PoLineCard";
 import { PastePanel } from "@/components/PastePanel";
@@ -15,36 +16,19 @@ import type { PoDetail, PoLine, PoSchema, Season } from "@/lib/types";
 
 const nf = new Intl.NumberFormat();
 
-export default function PurchaseOrderPage({ params }: { params: Promise<{ po: string }> }) {
-  // useSearchParams needs a boundary above it
-  return (
-    <Suspense fallback={<Spinner />}>
-      <PurchaseOrderView params={params} />
-    </Suspense>
-  );
-}
-
-function PurchaseOrderView({ params }: { params: Promise<{ po: string }> }) {
-  const { po } = use(params);
-  const buyerPo = decodeURIComponent(po);
+/** `/pos/D579` opens the first line; `/pos/D579/20271108-T1/Black` opens that one. */
+export default function PurchaseOrderPage({
+  params,
+}: {
+  params: Promise<{ po: string; line?: string[] }>;
+}) {
+  const { po, line } = use(params);
+  const buyerPo = safeDecode(po);
+  const [wantStyle, wantColour] = line ?? [];
   const { user } = useAuth();
   const qc = useQueryClient();
   const router = useRouter();
-  const pathname = usePathname();
   const allowed = !!user && canViewPos(user.role);
-
-  // `?row=` opens the page straight on one line's tab — links in from the
-  // dashboard and tracker carry the row they were clicked from
-  const requestedRow = Number(useSearchParams().get("row")) || null;
-  const [activeRowId, setActiveRowId] = useState<number | null>(requestedRow);
-  useEffect(() => {
-    if (requestedRow) setActiveRowId(requestedRow);
-  }, [requestedRow]);
-
-  const selectLine = (rowId: number) => {
-    setActiveRowId(rowId);
-    router.replace(`${pathname}?row=${rowId}`, { scroll: false });
-  };
 
   const schema = useQuery({
     queryKey: ["po-schema"],
@@ -58,16 +42,31 @@ function PurchaseOrderView({ params }: { params: Promise<{ po: string }> }) {
     enabled: allowed,
   });
 
+  // The URL is the source of truth for which tab is open. An unknown or missing
+  // style/colour falls back to the first line rather than showing nothing.
+  const lines = detail.data?.lines ?? [];
+  const active: PoLine | undefined =
+    lines.find(
+      (l) =>
+        segmentMatches(l.style_no, wantStyle) && segmentMatches(l.colour, wantColour),
+    ) ?? lines[0];
+
+  // keep the open tab visible — a deep link can land on one that's scrolled off
+  const activeTab = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    activeTab.current?.scrollIntoView({
+      block: "nearest",
+      inline: "center",
+      behavior: "smooth",
+    });
+  }, [active?.tracker_row_id]);
+
   if (user && !allowed)
     return <ErrorNote message="Your role does not have access to purchase orders." />;
   if (schema.isLoading || detail.isLoading) return <Spinner />;
   if (detail.error) return <ErrorNote message={(detail.error as Error).message} />;
 
   const d = detail.data!;
-  // the tab in view — falls back to the first line when the PO reloads and the
-  // previously selected row is gone
-  const active: PoLine | undefined =
-    d.lines.find((l) => l.tracker_row_id === activeRowId) ?? d.lines[0];
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["po", buyerPo] });
     qc.invalidateQueries({ queryKey: ["pos"] });
@@ -117,10 +116,16 @@ function PurchaseOrderView({ params }: { params: Promise<{ po: string }> }) {
                 return (
                   <button
                     key={line.tracker_row_id}
+                    ref={isActive ? activeTab : undefined}
                     type="button"
                     role="tab"
                     aria-selected={isActive}
-                    onClick={() => selectLine(line.tracker_row_id)}
+                    onClick={() =>
+                      router.replace(
+                        poLinePath(d.buyer_po, line.style_no, line.colour),
+                        { scroll: false },
+                      )
+                    }
                     className={clsx(
                       "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-colors",
                       isActive
