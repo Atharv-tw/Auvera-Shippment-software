@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useState } from "react";
+import { Suspense, use, useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -15,12 +16,35 @@ import type { PoDetail, PoLine, PoSchema, Season } from "@/lib/types";
 const nf = new Intl.NumberFormat();
 
 export default function PurchaseOrderPage({ params }: { params: Promise<{ po: string }> }) {
+  // useSearchParams needs a boundary above it
+  return (
+    <Suspense fallback={<Spinner />}>
+      <PurchaseOrderView params={params} />
+    </Suspense>
+  );
+}
+
+function PurchaseOrderView({ params }: { params: Promise<{ po: string }> }) {
   const { po } = use(params);
   const buyerPo = decodeURIComponent(po);
   const { user } = useAuth();
   const qc = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
   const allowed = !!user && canViewPos(user.role);
-  const [activeRowId, setActiveRowId] = useState<number | null>(null);
+
+  // `?row=` opens the page straight on one line's tab — links in from the
+  // dashboard and tracker carry the row they were clicked from
+  const requestedRow = Number(useSearchParams().get("row")) || null;
+  const [activeRowId, setActiveRowId] = useState<number | null>(requestedRow);
+  useEffect(() => {
+    if (requestedRow) setActiveRowId(requestedRow);
+  }, [requestedRow]);
+
+  const selectLine = (rowId: number) => {
+    setActiveRowId(rowId);
+    router.replace(`${pathname}?row=${rowId}`, { scroll: false });
+  };
 
   const schema = useQuery({
     queryKey: ["po-schema"],
@@ -96,7 +120,7 @@ export default function PurchaseOrderPage({ params }: { params: Promise<{ po: st
                     type="button"
                     role="tab"
                     aria-selected={isActive}
-                    onClick={() => setActiveRowId(line.tracker_row_id)}
+                    onClick={() => selectLine(line.tracker_row_id)}
                     className={clsx(
                       "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-colors",
                       isActive
