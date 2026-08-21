@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { api, ApiError } from "@/lib/api";
-import { canEditField, lockReason } from "@/lib/permissions";
+import { Info } from "lucide-react";
+import { canEditField, canViewAudit, lockReason } from "@/lib/permissions";
+import { AuditDrawer } from "@/components/AuditDrawer";
 import { Badge, Button, ErrorNote } from "@/components/ui";
 import { clsx } from "@/components/clsx";
 import { toDisplayDate, toIsoDate } from "@/lib/dateFormat";
@@ -39,6 +41,9 @@ export function PoLineCard({
   // open; Product and Shipping are detail you go looking for, so they don't.
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const openByDefault = (key: PoGroup) => key === "buyer" || key === "vendor";
+  const [auditField, setAuditField] = useState<PoFieldSpec | null>(null);
+
+  const showAudit = canViewAudit(role);
 
   const byGroup = useMemo(() => {
     const map = new Map<PoGroup, PoFieldSpec[]>();
@@ -203,10 +208,24 @@ export function PoLineCard({
                             <span className="text-[11px] text-slate-500 dark:text-slate-400">
                               {f.label}
                             </span>
+                            {showAudit && (
+                              <button
+                                type="button"
+                                title="Who changed this? View the change trail"
+                                aria-label={`Change trail for ${f.label}`}
+                                onClick={() => setAuditField(f)}
+                                className="ml-auto text-slate-300 hover:text-blue-600 dark:text-slate-600 dark:hover:text-blue-400"
+                              >
+                                <Info size={13} />
+                              </button>
+                            )}
                             {editing && locked && (
                               <span
                                 title={locked}
-                                className="ml-auto cursor-help text-[10px] font-medium text-amber-700 dark:text-amber-400"
+                                className={clsx(
+                                  "cursor-help text-[10px] font-medium text-amber-700 dark:text-amber-400",
+                                  showAudit ? "order-first ml-auto" : "ml-auto",
+                                )}
                               >
                                 locked
                               </span>
@@ -246,6 +265,18 @@ export function PoLineCard({
           );
         })}
       </div>
+
+      {auditField && (
+        <AuditDrawer
+          path={
+            `/api/pos/${encodeURIComponent(buyerPo)}/rows/${line.tracker_row_id}/audit` +
+            `?origin=${auditField.origin}&field=${encodeURIComponent(auditField.key)}`
+          }
+          label={auditField.label}
+          isDate={auditField.type === "date"}
+          onClose={() => setAuditField(null)}
+        />
+      )}
     </div>
   );
 }
