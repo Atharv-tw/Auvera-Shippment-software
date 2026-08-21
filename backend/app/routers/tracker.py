@@ -33,9 +33,13 @@ _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 @router.get("/columns", response_model=list[TrackerColumnOut])
 def columns(user: User = Depends(require_tracker_view)):
+    # Which columns this user may write is settled here and sent with the
+    # column list, so the grid never has to work it out a second time.
+    editable = permissions.editable_tracker_keys(user.role)
     return [
         TrackerColumnOut(
             **c,
+            editable=c["key"] in editable,
             is_price=c["key"] in tm.PRICE_KEYS,
             is_identity=c["key"] in tm.IDENTITY_KEYS,
             is_derived=c["key"] in tm.DERIVED_KEYS,
