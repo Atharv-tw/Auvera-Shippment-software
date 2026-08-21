@@ -95,5 +95,22 @@ cd backend
 uv run python -m app.reset_data          # prompts first; add --yes to skip
 ```
 
-There are no migrations yet — the schema is created by `create_all` on startup, so after a change
-to the models the quickest path locally is to delete `backend/shipping_z.db` and re-seed.
+### Schema changes
+
+There are no migrations yet. `create_all` on startup only ever **adds** tables — it never alters an
+existing one — so after a model gains a column the old table stays the old shape and every query
+against it 500s. In the browser that surfaces as a *CORS* error, because a 500 escapes past the CORS
+middleware; `GET /api/health/schema` says plainly whether the live database matches the models.
+
+While the data is still throwaway, rebuild it:
+
+```bash
+cd backend
+uv run python -m app.rebuild_schema --yes    # DROPS every table, users included, then re-seeds
+```
+
+On a host with no shell (Render, Fly), set `REBUILD_SCHEMA=true`, redeploy once, then **unset it** —
+otherwise every future deploy wipes the database.
+
+Once there is data worth keeping this stops being acceptable and the project needs real migrations;
+Alembic is already a declared dependency.
