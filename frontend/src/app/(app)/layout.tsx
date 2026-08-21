@@ -40,7 +40,7 @@ const NAV: { heading: string | null; items: NavItem[] }[] = [
     items: [
       { href: "/upload", label: "Upload Sheets", show: canUpload },
       { href: "/paste", label: "Paste PO Details", show: canPaste },
-      { href: "/manual", label: "Manual Entry", show: canEditIdentity },
+      { href: "/manual", label: "Manual PO Line", show: canEditIdentity },
     ],
   },
   {
