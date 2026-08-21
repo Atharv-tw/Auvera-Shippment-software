@@ -235,18 +235,19 @@ function SizeRatio({
   const total = Object.values(sizes).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="mb-3 overflow-x-auto rounded-md border border-slate-100 dark:border-slate-800">
+    <div className="thin-scroll mb-3 overflow-x-auto rounded-md border border-slate-100 dark:border-slate-800">
       <table className="w-full text-xs">
         <thead>
           <tr className="bg-slate-50 text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
             <th className="px-2 py-1 text-left font-medium">Size ratio</th>
             {ordered.map((s) => (
-              <th key={s.uk_size} className="px-2 py-1 text-right font-medium">
+              <th
+                key={s.uk_size}
+                className="whitespace-nowrap px-2 py-1 text-right font-medium"
+              >
                 {s.uk_size}
                 {s.alpha_size && (
-                  <span className="block text-[10px] font-normal text-slate-400">
-                    {s.alpha_size}
-                  </span>
+                  <span className="font-normal text-slate-400">/{s.alpha_size}</span>
                 )}
               </th>
             ))}
