@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +11,13 @@ import { poLinePath, safeDecode, segmentMatches } from "@/lib/routes";
 import { Badge, Button, Card, Select, Spinner, ErrorNote } from "@/components/ui";
 import { PoLineCard } from "@/components/PoLineCard";
 import { PastePanel } from "@/components/PastePanel";
+import { FieldChipBar } from "@/components/FieldChipBar";
+import { usePersistentState } from "@/lib/usePersistentState";
+import {
+  visibleKeysFromChips,
+  vocabularyFromFields,
+  type Chip,
+} from "@/lib/fieldVocabulary";
 import { clsx } from "@/components/clsx";
 import type { PoDetail, PoLine, PoSchema, Season } from "@/lib/types";
 
@@ -41,6 +48,33 @@ export default function PurchaseOrderPage({
     queryFn: () => api<PoDetail>(`/api/pos/${encodeURIComponent(buyerPo)}`),
     enabled: allowed,
   });
+
+  // All three live here, not in PoLineCard: the card is keyed on
+  // tracker_row_id, so every line-tab switch remounts it and anything kept
+  // inside would be lost. Persisted, so it also survives a reload.
+  const [quickViewChips, setQuickViewChips] = usePersistentState<Chip[]>("po-quick-view", []);
+  const [openSections, setOpenSections] = usePersistentState<Record<string, boolean>>(
+    "po-open-sections",
+    {},
+  );
+  const [hideEmpty, setHideEmpty] = usePersistentState("po-hide-empty", false);
+
+  const poVocabulary = useMemo(
+    () => vocabularyFromFields(schema.data?.fields ?? []),
+    [schema.data],
+  );
+  const quickViewKeys = useMemo(
+    () => visibleKeysFromChips(quickViewChips) ?? [],
+    [quickViewChips],
+  );
+  const poPresets = useMemo(() => {
+    const fields = schema.data?.fields ?? [];
+    const of = (group: string) => fields.filter((f) => f.group === group).map((f) => f.key);
+    return [
+      ...(schema.data?.groups ?? []).map((g) => ({ label: g.label, keys: of(g.key) })),
+      { label: "Money", keys: fields.filter((f) => f.is_price).map((f) => f.key) },
+    ].filter((preset) => preset.keys.length > 0);
+  }, [schema.data]);
 
   // The URL is the source of truth for which tab is open. An unknown or missing
   // style/colour falls back to the first line rather than showing nothing.
@@ -144,6 +178,25 @@ export default function PurchaseOrderPage({
             </div>
           )}
 
+          <div className="space-y-2">
+            <FieldChipBar
+              vocabulary={poVocabulary}
+              chips={quickViewChips}
+              onChange={setQuickViewChips}
+              presets={poPresets}
+              placeholder="Pin a field to Quick view — type a name, or pick a set below…"
+            />
+            <label className="flex w-fit cursor-pointer items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+              <input
+                type="checkbox"
+                checked={hideEmpty}
+                onChange={(e) => setHideEmpty(e.target.checked)}
+                className="h-3.5 w-3.5 accent-blue-600"
+              />
+              Hide empty fields
+            </label>
+          </div>
+
           <PoLineCard
             key={active.tracker_row_id}
             buyerPo={d.buyer_po}
@@ -153,6 +206,12 @@ export default function PurchaseOrderPage({
             role={user!.role}
             showTitle={d.lines.length === 1}
             onSaved={refresh}
+            openSections={openSections}
+            onToggleSection={(key, open) =>
+              setOpenSections((current) => ({ ...current, [key]: open }))
+            }
+            quickViewKeys={quickViewKeys}
+            hideEmpty={hideEmpty}
           />
         </div>
       )}

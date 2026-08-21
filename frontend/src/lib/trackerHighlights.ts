@@ -79,3 +79,17 @@ export function trackerRowClass(p: RowClassParams) {
   const row = p.data as { __hasVendor?: boolean } | undefined;
   return row && row.__hasVendor === false ? "tg-row-novendor" : undefined;
 }
+
+/** The same rules, for a single field outside the grid (the per-PO view).
+ * Returns "bad" | "warn" | null so a caller can pick its own styling. */
+export function fieldFlag(
+  key: string,
+  value: unknown,
+  row: Record<string, unknown>,
+): "bad" | "warn" | null {
+  const rule = HIGHLIGHT_RULES[key];
+  if (!rule) return null;
+  if (rule.bad?.(value, row)) return "bad";
+  if (rule.warn?.(value, row)) return "warn";
+  return null;
+}
