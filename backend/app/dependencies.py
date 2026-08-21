@@ -61,3 +61,40 @@ def require_customer_manage(user: User = Depends(get_current_user)) -> User:
     if not permissions.can_manage_customers(user.role):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to manage customers")
     return user
+
+
+def require_vendor_view(user: User = Depends(get_current_user)) -> User:
+    if not permissions.can_view_vendors(user.role):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to view vendors")
+    return user
+
+
+def require_vendor_manage(user: User = Depends(get_current_user)) -> User:
+    if not permissions.can_manage_vendors(user.role):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to manage vendors")
+    return user
+
+
+def require_po_view(user: User = Depends(get_current_user)) -> User:
+    """The per-PO view - open to merchants, unlike the tracker itself."""
+    if not permissions.can_view_pos(user.role):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to view purchase orders")
+    return user
+
+
+def require_paste(user: User = Depends(get_current_user)) -> User:
+    if not permissions.can_paste(user.role):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to paste PO details")
+    return user
+
+
+def require_season_assign(user: User = Depends(get_current_user)) -> User:
+    if not permissions.can_assign_season(user.role):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to assign seasons")
+    return user
+
+
+def require_reports(user: User = Depends(get_current_user)) -> User:
+    if not permissions.can_view_reports(user.role):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to view reports")
+    return user
