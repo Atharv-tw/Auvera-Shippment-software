@@ -28,10 +28,13 @@ export default function TrackerPage() {
     staleTime: Infinity,
     enabled: allowed,
   });
+  // The whole set, once. AG Grid filters and sorts it locally, which is what
+  // makes the column filters instant and free. Searching used to round-trip on
+  // every keystroke and could only match PO / style / colour; the quick filter
+  // below matches all 56 columns without touching the network.
   const rows = useQuery({
-    queryKey: ["tracker", search],
-    queryFn: () =>
-      api<TrackerRow[]>(`/api/tracker${search ? `?search=${encodeURIComponent(search)}` : ""}`),
+    queryKey: ["tracker"],
+    queryFn: () => api<TrackerRow[]>("/api/tracker"),
     enabled: allowed,
   });
 
@@ -54,7 +57,8 @@ export default function TrackerPage() {
 
       <div className="max-w-xs">
         <Input
-          placeholder="Search PO / style / colour…"
+          type="search"
+          placeholder="Search every column…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -72,12 +76,14 @@ export default function TrackerPage() {
             rows={rows.data ?? []}
             columns={columns.data ?? []}
             role={user!.role}
+            quickFilterText={search}
             onSaved={() => qc.invalidateQueries({ queryKey: ["tracker"] })}
           />
         )}
       </Card>
       <p className="text-xs text-slate-400">
-        Tip: open a row from the Dashboard for a form view of a single shipment line.
+        Tip: use the filter row under the headers to narrow a column, ctrl-click rows to total
+        just those, and open a row from the Dashboard for a form view of a single shipment line.
       </p>
     </div>
   );
