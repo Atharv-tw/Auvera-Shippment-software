@@ -20,7 +20,8 @@ from app.schemas import (
     TrackerRowOut,
     TrackerRowUpdate,
 )
-from app.services import audit, tracker_map as tm
+from app.services import tracker_map as tm
+from app.services.tracker_edit import apply_tracker_fields
 from app.services.tracker_export import tracker_workbook_bytes
 
 router = APIRouter(prefix="/api/tracker", tags=["tracker"])
@@ -30,7 +31,15 @@ _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 @router.get("/columns", response_model=list[TrackerColumnOut])
 def columns(user: User = Depends(require_tracker_view)):
-    return [TrackerColumnOut(**c) for c in tm.TRACKER_COLUMNS]
+    return [
+        TrackerColumnOut(
+            **c,
+            is_price=c["key"] in tm.PRICE_KEYS,
+            is_identity=c["key"] in tm.IDENTITY_KEYS,
+            is_derived=c["key"] in tm.DERIVED_KEYS,
+        )
+        for c in tm.TRACKER_COLUMNS
+    ]
 
 
 @router.get("/export")
@@ -88,73 +97,16 @@ def row_audit(
     return q.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).all()
 
 
-def _apply_fields(db: Session, row: TrackerRow, fields: dict, user: User, action: str) -> None:
-    """Apply user edits with role enforcement + audit; refresh denormalised/derived.
-
-    Raises 403 if the caller submits any valid tracker column they are not allowed
-    to edit (order-detail vs operational is decided by ``permissions``).
-    """
-    valid = set(tm.TRACKER_KEYS)
-    allowed = permissions.editable_tracker_keys(user.role)
-    forbidden = {k for k in fields if k in valid and k not in allowed}
-    if forbidden:
-        labels = ", ".join(sorted(tm.LABEL_BY_KEY.get(k, k) for k in forbidden))
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            f"Your role ({user.role}) cannot edit: {labels}",
-        )
-
-    data = dict(row.data or {})
-    edited = set(row.edited_keys or [])
-    for key, val in fields.items():
-        if key not in valid:
-            continue
-        # a blank submission means "clear this cell" — normalise to None so the
-        # value is genuinely empty (exports, derived columns) rather than ""
-        if isinstance(val, str) and not val.strip():
-            val = None
-        audit.record_change(
-            db, row_id=row.id, key=key, old=data.get(key), new=val,
-            action=action, user_id=user.id, user_name=user.name,
-        )
-        data[key] = val
-        edited.add(key)
-    # denormalised columns + match key
-    if "buyer_po" in fields:
-        row.buyer_po = fields["buyer_po"]
-    if "style_no" in fields:
-        row.style_no = fields["style_no"]
-    if "colour" in fields:
-        row.colour = fields["colour"]
-    # recompute price difference unless the user set it explicitly
-    if "price_difference" not in edited:
-        b, f = data.get("buyer_net_price"), data.get("factory_price")
-        try:
-            new_diff = None if b is None or f is None else round(float(b) - float(f), 4)
-        except (TypeError, ValueError):
-            new_diff = data.get("price_difference")  # leave as-is on bad input
-        if new_diff != data.get("price_difference"):
-            audit.record_change(
-                db, row_id=row.id, key="price_difference",
-                old=data.get("price_difference"), new=new_diff,
-                action=action, user_id=user.id, user_name=user.name,
-            )
-            data["price_difference"] = new_diff
-    row.data = data
-    row.edited_keys = sorted(edited)
-    row.match_key = tm.match_key(row.buyer_po, row.style_no, row.colour)
-
-
 @router.post("", response_model=TrackerRowOut, status_code=status.HTTP_201_CREATED)
 def create_tracker_row(
     body: TrackerRowCreate,
     db: Session = Depends(get_db),
     user: User = Depends(require_tracker_view),
 ):
-    if not permissions.can_edit_order_details(user.role):
+    if not permissions.can_edit_identity(user.role):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
-            "Creating a tracker row sets its order identity; only CEO / admin may do this",
+            "Creating a tracker row sets its PO/Style/Colour identity; only CEO / admin may do this",
         )
     f = body.fields
     match = tm.match_key(f.get("buyer_po"), f.get("style_no"), f.get("colour"))
@@ -163,7 +115,7 @@ def create_tracker_row(
     row = TrackerRow(match_key=match, data={}, edited_keys=[], has_buyer=True, created_by=user.id)
     db.add(row)
     db.flush()  # obtain row.id for audit entries
-    _apply_fields(db, row, f, user, action="manual")
+    apply_tracker_fields(db, row, f, user, action="manual")
     db.commit()
     db.refresh(row)
     return row
@@ -180,7 +132,7 @@ def bulk_update(
         row = db.get(TrackerRow, int(row_id))
         if row is None:
             continue
-        _apply_fields(db, row, fields, user, action="edit")
+        apply_tracker_fields(db, row, fields, user, action="edit")
         out.append(row)
     db.commit()
     for r in out:
@@ -198,7 +150,7 @@ def update_tracker_row(
     row = db.get(TrackerRow, row_id)
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Tracker row not found")
-    _apply_fields(db, row, body.fields, user, action="edit")
+    apply_tracker_fields(db, row, body.fields, user, action="edit")
     db.commit()
     db.refresh(row)
     return row
