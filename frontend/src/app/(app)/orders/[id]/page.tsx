@@ -36,10 +36,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">Order {o.order_number}</h1>
         <Badge color="blue">{o.is_confirmation ? "confirmation" : "order"}</Badge>
         <Link
-          href={`/tracker?search=${encodeURIComponent(o.order_number ?? "")}`}
+          href={`/pos/${encodeURIComponent(o.order_number ?? "")}`}
           className="ml-auto text-sm text-blue-600 hover:underline"
         >
-          View in tracker →
+          Open purchase order →
         </Link>
       </div>
 
