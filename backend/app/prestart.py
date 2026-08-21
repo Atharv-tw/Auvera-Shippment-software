@@ -32,6 +32,15 @@ def wait_for_db(attempts: int = 60, delay: float = 2.0) -> None:
 
 def main() -> None:
     wait_for_db()
+
+    # A model that gained a column needs the table rebuilt - create_all cannot
+    # alter one. Set REBUILD_SCHEMA=true for a single deploy to do that, then
+    # unset it. Destructive: it drops every table, users included.
+    from app.rebuild_schema import rebuild_if_env_set
+
+    if rebuild_if_env_set():
+        return  # rebuild seeds as its last step
+
     from app import seed
 
     seed.main()
