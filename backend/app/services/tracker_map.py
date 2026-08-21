@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services.parties import parse_buyer_block
+
 # type: "text" | "number" | "date"
 # source: "buyer" | "vendor" | "const" | "calc" | "operational"
 # Each entry: (excel_col, key, label, type, source)
@@ -64,7 +66,7 @@ TRACKER_COLUMNS: list[dict[str, str]] = [
     dict(col="AV", key="approval_carting_do_date", label="Approval, Carting, DO date", type="date", source="operational"),
     dict(col="AW", key="actual_ho_date", label="Actual H/o date/FCR date", type="date", source="operational"),
     dict(col="AX", key="container_no", label="Container No.", type="text", source="operational"),
-    dict(col="AY", key="container_size", label="Size", type="text", source="operational"),
+    dict(col="AY", key="container_size", label="Container Size", type="text", source="operational"),
     dict(col="AZ", key="lcl_fcl", label="LCL/FCL", type="text", source="operational"),
     dict(col="BA", key="vessel", label="Vessel", type="text", source="operational"),
     dict(col="BB", key="voyage", label="Voyage", type="text", source="operational"),
@@ -91,6 +93,23 @@ ORDER_DETAIL_KEYS: frozenset[str] = frozenset(
 OPERATIONAL_KEYS: frozenset[str] = frozenset(
     c["key"] for c in TRACKER_COLUMNS if c["source"] in OPERATIONAL_SOURCES
 )
+
+
+# --- edit gates ----------------------------------------------------------------
+# Money columns. Only the CEO and admin may hand-edit these; a sheet upload
+# still writes them for everyone, since that is the sheet's own figure.
+PRICE_KEYS: frozenset[str] = frozenset({
+    "buyer_net_price", "buyer_total_value",
+    "factory_price", "vendor_total_value",
+    "price_difference",
+})
+
+# The row's identity. Editing any of these re-keys ``match_key``, which would
+# silently orphan the row from future re-imports - CEO/admin only.
+IDENTITY_KEYS: frozenset[str] = frozenset({"buyer_po", "style_no", "colour"})
+
+# Derived, never hand-edited by anyone.
+DERIVED_KEYS: frozenset[str] = frozenset({"price_difference"})
 
 
 def field_class(key: str) -> str:
@@ -140,9 +159,11 @@ def buyer_fields(header: dict, line: dict) -> dict[str, Any]:
     total = line.get("total_spent")
     if total is None and qty is not None and price is not None:
         total = round(qty * price, 2)
+    # the sheet's "Supplier" is us; the customer is the D1 block
+    customer = parse_buyer_block(header.get("buyer_block"))["name"]
     return {
         "company_code": COMPANY_CODE,
-        "customer_name": DEFAULT_CUSTOMER,
+        "customer_name": customer or DEFAULT_CUSTOMER,
         "division": DEFAULT_DIVISION,
         "buyer_po": header.get("order_number"),
         "colour": line.get("colour"),
@@ -154,6 +175,8 @@ def buyer_fields(header: dict, line: dict) -> dict[str, Any]:
         "buyer_net_price": price,
         "buyer_total_value": total,
         "item": line.get("description"),
+        # what the buyer pays us, taken verbatim from the buyer sheet ("100%TT")
+        "buyer_payment_terms_status": header.get("payment_terms"),
         # provenance / traceability (not tracker columns, carried in metadata)
         "_article": line.get("article"),
     }
@@ -170,6 +193,9 @@ def vendor_fields(header: dict, line: dict) -> dict[str, Any]:
         "vendor_terms": header.get("terms_of_delivery"),
         "factory_price": price,
         "vendor_total_value": total,
+        # what we pay this factory, verbatim from its own block header - the
+        # "100%" prefix is part of the term and is kept ("100%TT 30 DAYS")
+        "factory_payment_terms_status": header.get("payment_terms"),
         "_article": line.get("article"),
     }
 
