@@ -38,6 +38,14 @@ type Row = Record<string, unknown> & { __id: number; __hasVendorData: boolean };
 type Totals = { count: number; qty: number; buyer: number; vendor: number; diff: number };
 const EMPTY_TOTALS: Totals = { count: 0, qty: 0, buyer: 0, vendor: 0, diff: 0 };
 
+/** Frozen to the left while you scroll. Deliberately narrower than the row's
+ * identity: every pinned column is width the other 50-odd never get back. */
+const PINNED_COLUMNS = ["buyer_po", "style_no"];
+
+/** Never hidden by a field projection - without these you cannot tell which
+ * shipment a row is, whatever else the chips are showing. Colour stays here
+ * even though it is not pinned: it still identifies the row, it just does not
+ * need to follow you across the sheet. */
 const IDENTITY_COLUMNS = ["buyer_po", "style_no", "colour"];
 
 /** Excel-style grid over tracker rows: one row per shipment line, one column
@@ -137,11 +145,11 @@ export function TrackerGrid({
             ? "agNumberCellEditor"
             : "agTextCellEditor",
         cellDataType: false,
-        // The identity block stays put while you scroll right - this is Excel's
-        // freeze panes. All three, not just Style: a row is PO# + Style +
-        // Colour, and Style alone repeats across POs and colours, so a lone
-        // pinned Style column shows rows you cannot tell apart.
-        pinned: IDENTITY_COLUMNS.includes(c.key) ? ("left" as const) : undefined,
+        // PO# and Style stay put while you scroll right - Excel's freeze panes.
+        // Colour is not pinned: it is part of the row's identity but rarely the
+        // part you need mid-scroll, and pinned width is taken from the 50-odd
+        // columns you are scrolling to reach.
+        pinned: PINNED_COLUMNS.includes(c.key) ? ("left" as const) : undefined,
         // Identity is never hidden by a projection: without PO#/Style/Colour
         // the remaining columns cannot be attributed to a shipment.
         hide: visibleKeys
