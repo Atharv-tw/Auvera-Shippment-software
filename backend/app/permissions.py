@@ -2,19 +2,27 @@
 
 Roles
 -----
-- ``admin``            – full access (edit everything, upload, delete, view audit).
-- ``ceo``              – edits order details (via the per-row field view only, never
-                         the bulk tracker grid), views (not edits) operational data,
-                         sees the field-level audit trail, and may upload order sheets.
-- ``shipping_manager`` – edits the tracker's operational data, views (not edits)
-                         order details.
-- ``merchant``         – uploads order sheets and views order details; no tracker.
+- ``admin``            - full access (edit everything, upload, delete, view audit).
+- ``ceo``              - edits everything including prices, sees the audit trail,
+                         may upload order sheets.
+- ``shipping_manager`` - owns the Shipment Tracker and edits it freely, except
+                         the price columns and the row's PO/Style/Colour identity.
+- ``merchant``         - uploads order sheets, assigns each PO its season, and
+                         works purchase orders in the per-PO view (same price and
+                         identity limits). No Shipment Tracker: it is the shipping
+                         team's table and irrelevant to them.
 
 ``vendor`` is a legacy role kept as a read-only viewer (orders only).
+
+The editing model is deliberately flat: everyone who can edit, edits everything,
+*except* the money columns, which are the CEO's and admin's alone. Uploads are
+not affected - a sheet that carries prices still writes them for whoever uploads
+it, because that is the sheet's own figure and not a hand edit.
 """
 
 from __future__ import annotations
 
+from app.services import field_groups as fg
 from app.services import tracker_map as tm
 
 ADMIN = "admin"
@@ -28,15 +36,36 @@ ALL_ROLES = (ADMIN, CEO, SHIPPING_MANAGER, MERCHANT)
 
 
 def can_view_tracker(role: str) -> bool:
+    """The Shipment Tracker itself - merchants have no business here."""
     return role in (ADMIN, CEO, SHIPPING_MANAGER)
 
 
-def can_edit_operational(role: str) -> bool:
+def can_view_pos(role: str) -> bool:
+    """The per-PO view: everyone who works orders, merchants included."""
+    return role in (ADMIN, CEO, SHIPPING_MANAGER, MERCHANT)
+
+
+def can_edit_prices(role: str) -> bool:
+    """Money columns: buyer/factory price, both totals, price difference."""
+    return role in (ADMIN, CEO)
+
+
+def can_edit_identity(role: str) -> bool:
+    """Buyer PO# / Style / Colour - changing these re-keys the row."""
+    return role in (ADMIN, CEO)
+
+
+def can_edit_tracker(role: str) -> bool:
+    return role in (ADMIN, CEO, SHIPPING_MANAGER)
+
+
+def can_paste(role: str) -> bool:
+    """Pasting a table of PO details straight from an e-mail."""
     return role in (ADMIN, SHIPPING_MANAGER)
 
 
-def can_edit_order_details(role: str) -> bool:
-    return role in (ADMIN, CEO)
+def can_assign_season(role: str) -> bool:
+    return role in (ADMIN, CEO, MERCHANT)
 
 
 def can_upload(role: str) -> bool:
@@ -44,6 +73,10 @@ def can_upload(role: str) -> bool:
 
 
 def can_view_audit(role: str) -> bool:
+    return role in (ADMIN, CEO)
+
+
+def can_view_reports(role: str) -> bool:
     return role in (ADMIN, CEO)
 
 
@@ -55,15 +88,36 @@ def can_manage_customers(role: str) -> bool:
     return role == ADMIN
 
 
+def can_view_vendors(role: str) -> bool:
+    return role in (ADMIN, CEO)
+
+
+def can_manage_vendors(role: str) -> bool:
+    return role == ADMIN
+
+
 def can_delete(role: str) -> bool:
     return role == ADMIN
 
 
 def editable_tracker_keys(role: str) -> frozenset[str]:
     """The set of tracker column keys this role is allowed to write."""
-    keys: set[str] = set()
-    if can_edit_order_details(role):
-        keys |= tm.ORDER_DETAIL_KEYS
-    if can_edit_operational(role):
-        keys |= tm.OPERATIONAL_KEYS
+    if role not in (ADMIN, CEO, SHIPPING_MANAGER, MERCHANT):
+        return frozenset()
+    # price_difference is computed from the two prices - nobody hand-edits it
+    keys = set(tm.TRACKER_KEYS) - set(tm.DERIVED_KEYS)
+    if not can_edit_prices(role):
+        keys -= tm.PRICE_KEYS
+    if not can_edit_identity(role):
+        keys -= tm.IDENTITY_KEYS
+    return frozenset(keys)
+
+
+def editable_line_keys(role: str) -> frozenset[str]:
+    """Order-sheet line fields (article, garment spec...) this role may write."""
+    if role not in (ADMIN, CEO, SHIPPING_MANAGER, MERCHANT):
+        return frozenset()
+    keys = set(fg.LINE_KEYS)
+    if not can_edit_prices(role):
+        keys -= fg.LINE_PRICE_KEYS
     return frozenset(keys)
