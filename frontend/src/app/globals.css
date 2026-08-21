@@ -25,3 +25,33 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Thin, unobtrusive scrollbar for scrolling strips (tabs, wide tables).
+   Windows Chrome otherwise draws its chunky default bar with arrow buttons. */
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.dark .thin-scroll {
+  scrollbar-color: #334155 transparent;
+}
+.thin-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.thin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+.thin-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+.dark .thin-scroll::-webkit-scrollbar-thumb {
+  background-color: #334155;
+}
+.dark .thin-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #475569;
+}
