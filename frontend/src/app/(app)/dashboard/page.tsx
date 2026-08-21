@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Button, Card, Badge, Spinner, ErrorNote } from "@/components/ui";
 import { canViewTracker, canUpload, canEditIdentity, canViewPos } from "@/lib/permissions";
+import { poLinePath } from "@/lib/routes";
 import type { Order, TrackerRow, VendorOrder } from "@/lib/types";
 
 function StatCard({ label, value }: { label: string; value: number | string }) {
@@ -99,7 +100,7 @@ export default function DashboardPage() {
                 <tr key={r.id} className="border-t border-slate-100 dark:border-slate-800">
                   <td className="py-2 pr-4">
                     <Link
-                      href={`/pos/${encodeURIComponent(r.buyer_po ?? "")}?row=${r.id}`}
+                      href={poLinePath(r.buyer_po ?? "", r.style_no, r.colour)}
                       className="text-blue-600 hover:underline"
                     >
                       {r.buyer_po}
