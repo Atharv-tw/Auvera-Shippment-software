@@ -41,3 +41,26 @@ def record_change(
         user_id=user_id,
         user_name=user_name,
     ))
+
+
+def record_line_change(db: Session, *, line, key: str, label: str, old, new, user) -> None:
+    """Append an audit entry for an order-sheet field edited in the PO view.
+
+    Recorded against the order line rather than a tracker row, so the tracker's
+    own change trail stays about the tracker.
+    """
+    old_s, new_s = _stringify(old), _stringify(new)
+    if old_s == new_s:
+        return
+    db.add(AuditLog(
+        entity_type="order_line",
+        entity_id=line.id,
+        field_key=key,
+        field_label=label,
+        field_class="product",
+        old_value=old_s,
+        new_value=new_s,
+        action="edit",
+        user_id=user.id,
+        user_name=user.name,
+    ))
