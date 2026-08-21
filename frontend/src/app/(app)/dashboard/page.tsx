@@ -99,7 +99,7 @@ export default function DashboardPage() {
                 <tr key={r.id} className="border-t border-slate-100 dark:border-slate-800">
                   <td className="py-2 pr-4">
                     <Link
-                      href={`/pos/${encodeURIComponent(r.buyer_po ?? "")}`}
+                      href={`/pos/${encodeURIComponent(r.buyer_po ?? "")}?row=${r.id}`}
                       className="text-blue-600 hover:underline"
                     >
                       {r.buyer_po}
