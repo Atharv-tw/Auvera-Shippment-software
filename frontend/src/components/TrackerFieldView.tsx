@@ -6,13 +6,15 @@ import { Info, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import type { AuditEntry, Role, TrackerColumn, TrackerRow } from "@/lib/types";
 import {
-  canEditSource,
-  canEditAnyTracker,
+  canEditField,
+  canEditTracker,
   canViewAudit,
   isOrderDetailSource,
+  lockReason,
 } from "@/lib/permissions";
 import { Button, ErrorNote, Badge } from "@/components/ui";
 import { toDisplayDate, toIsoDate } from "@/lib/dateFormat";
+import { clsx } from "@/components/clsx";
 
 const GROUPS: { title: string; sources: string[] }[] = [
   { title: "Buyer", sources: ["buyer", "const"] },
@@ -43,9 +45,9 @@ export function TrackerFieldView({
   const [error, setError] = useState<string | null>(null);
   const [auditKey, setAuditKey] = useState<string | null>(null);
 
-  const editable = (source: string) => canEditSource(role, source);
+  const editable = (c: TrackerColumn) => canEditField(role, c);
   const showAudit = canViewAudit(role);
-  const canEdit = canEditAnyTracker(role);
+  const canEdit = canEditTracker(role);
   const typeByKey = useMemo(
     () => Object.fromEntries(columns.map((c) => [c.key, c.type])),
     [columns],
@@ -131,7 +133,8 @@ export function TrackerFieldView({
             </h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {cols.map((c) => {
-                const fieldEditable = editing && editable(c.source);
+                const fieldEditable = editing && editable(c);
+                const locked = editing ? lockReason(role, c) : null;
                 const auditable = showAudit && isOrderDetailSource(c.source);
                 return (
                   <div
@@ -160,7 +163,13 @@ export function TrackerFieldView({
                         onChange={(e) => setDraft((d) => ({ ...d, [c.key]: e.target.value }))}
                       />
                     ) : (
-                      <div className="mt-0.5 text-sm text-slate-800 dark:text-slate-200">
+                      <div
+                        title={locked ?? undefined}
+                        className={clsx(
+                          "mt-0.5 text-sm text-slate-800 dark:text-slate-200",
+                          locked && "cursor-not-allowed opacity-60",
+                        )}
+                      >
                         {row.data[c.key] != null && row.data[c.key] !== ""
                           ? displayValue(c.key, row.data[c.key])
                           : "—"}
