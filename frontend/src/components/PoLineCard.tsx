@@ -188,7 +188,14 @@ export function PoLineCard({
                       return (
                         <div
                           key={`${f.origin}:${f.key}`}
-                          className="rounded-md border border-slate-100 p-2 dark:border-slate-800"
+                          className={clsx(
+                            "rounded-md border p-2",
+                            // The money columns, called out so they are findable
+                            // at a glance on a page of fifty-odd fields.
+                            f.is_price
+                              ? "border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10"
+                              : "border-slate-100 dark:border-slate-800",
+                          )}
                         >
                           <div className="flex items-center gap-1">
                             <span className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -197,7 +204,7 @@ export function PoLineCard({
                             {editing && locked && (
                               <span
                                 title={locked}
-                                className="ml-auto cursor-help text-[10px] text-amber-500"
+                                className="ml-auto cursor-help text-[10px] font-medium text-amber-700 dark:text-amber-400"
                               >
                                 locked
                               </span>
@@ -205,7 +212,12 @@ export function PoLineCard({
                           </div>
                           {canEdit ? (
                             <input
-                              className="mt-0.5 w-full rounded border border-slate-200 px-1.5 py-1 text-sm outline-none focus:border-blue-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                              className={clsx(
+                                "mt-0.5 w-full rounded border px-1.5 py-1 text-sm outline-none focus:border-blue-400 dark:bg-slate-800 dark:text-slate-100",
+                                f.is_price
+                                  ? "border-amber-300 bg-amber-50/60 dark:border-amber-500/40"
+                                  : "border-slate-200 dark:border-slate-700",
+                              )}
                               value={value(f)}
                               onChange={(e) =>
                                 setDraft((d) => ({ ...d, [f.key]: e.target.value }))
