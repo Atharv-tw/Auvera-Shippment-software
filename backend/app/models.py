@@ -42,6 +42,8 @@ class User(Base, TimestampMixin):
 class _LineColumns:
     row_index: Mapped[int | None] = mapped_column(Integer)
     order_date: Mapped[str | None] = mapped_column(String(64))
+    # the same order date parsed to a real date, for grouping / season defaults
+    order_date_d: Mapped[date | None] = mapped_column(Date)
     article: Mapped[str | None] = mapped_column(String(64))
     description: Mapped[str | None] = mapped_column(String(255))
     colour: Mapped[str | None] = mapped_column(String(64))
@@ -64,6 +66,10 @@ class _LineColumns:
     label_extra: Mapped[str | None] = mapped_column(String(64))
     factory: Mapped[str | None] = mapped_column(String(128))
     store: Mapped[str | None] = mapped_column(String(32))
+    # every non-empty cell of the source row, keyed by Excel column letter, with
+    # the header text it sat under. Nothing the sheet carries is thrown away —
+    # columns we have no field for are still recoverable from here.
+    raw: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
 class _OrderHeaderColumns:
@@ -78,6 +84,11 @@ class _OrderHeaderColumns:
     port_of_loading: Mapped[str | None] = mapped_column(String(64))
     buyer_block: Mapped[str | None] = mapped_column(Text)
     source_filename: Mapped[str | None] = mapped_column(String(255))
+    # full label -> value map of the block header, including labels we do not model
+    raw_header: Mapped[dict] = mapped_column(JSON, default=dict)
+    # the size-ratio grid spec read off the sheet: one entry per size column,
+    # {col, uk_size, alpha_size, range_label} — e.g. 24 / XL / 22-24
+    size_header: Mapped[list] = mapped_column(JSON, default=list)
 
 
 # --- buyer side ----------------------------------------------------------------
@@ -87,6 +98,7 @@ class Order(Base, TimestampMixin, _OrderHeaderColumns):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     is_confirmation: Mapped[bool] = mapped_column(Boolean, default=False)
+    customer_id: Mapped[int | None] = mapped_column(ForeignKey("customers.id"))
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
 
     lines: Mapped[list["OrderLine"]] = relationship(
@@ -111,6 +123,7 @@ class VendorOrder(Base, TimestampMixin, _OrderHeaderColumns):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     block_index: Mapped[int] = mapped_column(Integer, default=0)
+    vendor_id: Mapped[int | None] = mapped_column(ForeignKey("vendors.id"))
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
 
     lines: Mapped[list["VendorOrderLine"]] = relationship(
@@ -187,3 +200,60 @@ class Customer(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255), index=True)
     address: Mapped[str | None] = mapped_column(Text)
     vat_number: Mapped[str | None] = mapped_column(String(64))
+
+
+# --- vendors (factory master) --------------------------------------------------
+
+class Vendor(Base, TimestampMixin):
+    """Factory master record.
+
+    Mirrors ``Customer`` but carries the sourcing detail the vendor workbooks
+    supply per factory block, so the list self-populates from uploads and is
+    then corrected by hand.
+    """
+
+    __tablename__ = "vendors"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    address: Mapped[str | None] = mapped_column(Text)
+    vat_number: Mapped[str | None] = mapped_column(String(64))
+    code: Mapped[str | None] = mapped_column(String(32))
+    country: Mapped[str | None] = mapped_column(String(64))
+    factory_town: Mapped[str | None] = mapped_column(String(64))
+    port_of_loading: Mapped[str | None] = mapped_column(String(64))
+    payment_terms: Mapped[str | None] = mapped_column(String(128))
+    terms_of_delivery: Mapped[str | None] = mapped_column(String(64))
+    currency: Mapped[str | None] = mapped_column(String(16))
+
+
+# --- season of a purchase order ------------------------------------------------
+
+class POSeason(Base, TimestampMixin):
+    """Which selling season a Buyer PO belongs to.
+
+    The order paperwork never states this, so it comes from the merchant: on
+    upload we suggest a season from the PO's delivery date (Mar-Aug =
+    Spring/Summer, otherwise Autumn/Winter) and they confirm or change it.
+    ``confirmed`` stays False until a human has actually looked at it.
+    """
+
+    __tablename__ = "po_seasons"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    buyer_po: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    season_type: Mapped[str] = mapped_column(String(2))  # SS | AW
+    season_year: Mapped[int] = mapped_column(Integer)
+    confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
+    assigned_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+
+    @property
+    def label(self) -> str:
+        """e.g. ``Spring-Summer '26``."""
+        name = "Spring-Summer" if self.season_type == "SS" else "Autumn-Winter"
+        return f"{name} '{self.season_year % 100:02d}"
+
+    @property
+    def code(self) -> str:
+        """e.g. ``SS26``."""
+        return f"{self.season_type}{self.season_year % 100:02d}"
