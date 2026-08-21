@@ -35,7 +35,8 @@ export function PoLineCard({
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState<Record<string, boolean>>({ product: false });
+  // every section collapses; only Product starts closed, since it carries the size grid
+  const [closed, setClosed] = useState<Record<string, boolean>>({ product: true });
 
   const byGroup = useMemo(() => {
     const map = new Map<PoGroup, PoFieldSpec[]>();
@@ -103,7 +104,14 @@ export function PoLineCard({
             {line.has_vendor && <Badge color="green">vendor</Badge>}
           </>
         )}
-        {line.article && <span className="text-xs text-slate-400">{line.article}</span>}
+        {line.article && (
+          <span className="text-xs text-slate-400">
+            Article{" "}
+            <span className="font-medium text-slate-600 dark:text-slate-300">
+              {line.article}
+            </span>
+          </span>
+        )}
         <div className="ml-auto flex gap-2">
           {editing ? (
             <>
@@ -138,24 +146,18 @@ export function PoLineCard({
         {groups.map((g) => {
           const groupFields = byGroup.get(g.key) ?? [];
           if (groupFields.length === 0) return null;
-          const collapsible = g.key === "product";
-          const isOpen = !collapsible || open[g.key];
+          const isOpen = !closed[g.key];
           return (
             <section key={g.key}>
               <button
                 type="button"
-                aria-label={
-                  collapsible ? `${g.label} (${isOpen ? "collapse" : "expand"})` : g.label
-                }
-                aria-expanded={collapsible ? isOpen : undefined}
-                onClick={() => collapsible && setOpen((o) => ({ ...o, [g.key]: !o[g.key] }))}
-                className={clsx(
-                  "mb-2 flex w-full items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500",
-                  collapsible && "cursor-pointer hover:text-slate-600 dark:hover:text-slate-300",
-                )}
+                aria-label={`${g.label} (${isOpen ? "collapse" : "expand"})`}
+                aria-expanded={isOpen}
+                onClick={() => setClosed((c) => ({ ...c, [g.key]: !c[g.key] }))}
+                className="mb-2 flex w-full cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
               >
                 <span>{g.label}</span>
-                {collapsible && <span className="text-[10px]">{isOpen ? "▾" : "▸"}</span>}
+                <span className="text-[10px]">{isOpen ? "▾" : "▸"}</span>
                 <span className="h-px flex-1 bg-slate-100 dark:bg-slate-800" />
               </button>
 
