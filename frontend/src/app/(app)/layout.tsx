@@ -12,17 +12,45 @@ import type { Role } from "@/lib/types";
 import {
   ROLE_LABELS,
   canViewTracker,
+  canViewPos,
   canUpload,
-  canEditOrderDetails,
+  canEditIdentity,
+  canPaste,
   canViewCustomers,
+  canViewVendors,
+  canViewReports,
 } from "@/lib/permissions";
 
-const NAV: { href: string; label: string; show: (r: Role) => boolean }[] = [
-  { href: "/dashboard", label: "Dashboard", show: () => true },
-  { href: "/tracker", label: "Shipment Tracker", show: canViewTracker },
-  { href: "/upload", label: "Upload Sheets", show: canUpload },
-  { href: "/manual", label: "Manual Entry", show: canEditOrderDetails },
-  { href: "/customers", label: "Customers", show: canViewCustomers },
+type NavItem = { href: string; label: string; show: (r: Role) => boolean };
+
+// Grouped so the sidebar reads as sections rather than one long list. The
+// per-PO view sits above the tracker deliberately: it is the view most roles
+// live in, and merchants only ever see that one.
+const NAV: { heading: string | null; items: NavItem[] }[] = [
+  {
+    heading: null,
+    items: [
+      { href: "/dashboard", label: "Dashboard", show: () => true },
+      { href: "/pos", label: "Purchase Orders", show: canViewPos },
+      { href: "/tracker", label: "Shipment Tracker", show: canViewTracker },
+    ],
+  },
+  {
+    heading: "Data in",
+    items: [
+      { href: "/upload", label: "Upload Sheets", show: canUpload },
+      { href: "/paste", label: "Paste PO Details", show: canPaste },
+      { href: "/manual", label: "Manual Entry", show: canEditIdentity },
+    ],
+  },
+  {
+    heading: "Records",
+    items: [
+      { href: "/customers", label: "Customers", show: canViewCustomers },
+      { href: "/vendors", label: "Vendors", show: canViewVendors },
+      { href: "/reports", label: "Reports", show: canViewReports },
+    ],
+  },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -64,21 +92,34 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {user.name} · {ROLE_LABELS[user.role] ?? user.role}
           </div>
         </div>
-        <nav className="flex-1 space-y-0.5 p-2">
-          {NAV.filter((item) => item.show(user.role)).map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={clsx(
-                "block rounded-md px-3 py-2 text-sm",
-                isActive(item.href)
-                  ? "bg-blue-500/15 font-medium text-blue-400"
-                  : "text-slate-300 hover:bg-slate-800 hover:text-white",
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
+        <nav className="flex-1 overflow-y-auto p-2">
+          {NAV.map((section) => {
+            const items = section.items.filter((item) => item.show(user.role));
+            if (items.length === 0) return null;
+            return (
+              <div key={section.heading ?? "main"} className="mb-3 space-y-0.5">
+                {section.heading && (
+                  <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    {section.heading}
+                  </div>
+                )}
+                {items.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={clsx(
+                      "block rounded-md px-3 py-2 text-sm",
+                      isActive(item.href)
+                        ? "bg-blue-500/15 font-medium text-blue-400"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            );
+          })}
         </nav>
         <div className="space-y-1 border-t border-slate-700/50 p-2">
           <ThemeToggle className="w-full justify-center" />
