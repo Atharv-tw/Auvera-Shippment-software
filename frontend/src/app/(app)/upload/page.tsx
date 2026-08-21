@@ -8,7 +8,8 @@ import { useAuth } from "@/lib/auth";
 import { canUpload } from "@/lib/permissions";
 import { Button, Card, Badge, ErrorNote } from "@/components/ui";
 import { clsx } from "@/components/clsx";
-import type { UploadResponse, UploadFileResult } from "@/lib/types";
+import { SeasonAssignDialog } from "@/components/SeasonAssignDialog";
+import type { SeasonSuggestion, UploadResponse, UploadFileResult } from "@/lib/types";
 
 export default function UploadPage() {
   const qc = useQueryClient();
@@ -19,6 +20,7 @@ export default function UploadPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<UploadFileResult[] | null>(null);
+  const [seasons, setSeasons] = useState<SeasonSuggestion[]>([]);
 
   if (user && !canUpload(user.role))
     return <ErrorNote message="Your role is not allowed to upload order sheets." />;
@@ -35,11 +37,13 @@ export default function UploadPage() {
     setBusy(true);
     setError(null);
     setResults(null);
+    setSeasons([]);
     try {
       const form = new FormData();
       files.forEach((f) => form.append("files", f));
       const res = await apiUpload<UploadResponse>("/api/orders/upload", form);
       setResults(res.results);
+      setSeasons(res.seasons ?? []);
       setFiles([]);
       qc.invalidateQueries();
     } catch (e) {
@@ -133,7 +137,21 @@ export default function UploadPage() {
               <li key={i} className="rounded-md border border-slate-100 p-3">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{r.filename}</span>
-                  {r.kind && <Badge color={r.kind === "vendor" ? "green" : "blue"}>{r.kind}</Badge>}
+                  {r.kind && (
+                    <span title={r.kind_reason ?? undefined}>
+                      <Badge color={r.kind === "vendor" ? "green" : "blue"}>
+                        {r.kind} sheet
+                      </Badge>
+                    </span>
+                  )}
+                  {r.kind_confidence && r.kind_confidence !== "high" && (
+                    <span
+                      title={r.kind_reason ?? undefined}
+                      className="text-xs text-amber-600"
+                    >
+                      detected from a weak signal - check this is right
+                    </span>
+                  )}
                   <Badge color={r.status === "error" ? "red" : "green"}>{r.status}</Badge>
                   {r.status !== "error" && (
                     <span className="text-xs text-slate-500">
@@ -153,6 +171,13 @@ export default function UploadPage() {
             ))}
           </ul>
         </Card>
+      )}
+
+      {seasons.length > 0 && (
+        <SeasonAssignDialog
+          suggestions={seasons}
+          onDone={() => qc.invalidateQueries({ queryKey: ["pos"] })}
+        />
       )}
     </div>
   );
