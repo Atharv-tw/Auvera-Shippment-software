@@ -80,17 +80,6 @@ export default function PurchaseOrderPage({ params }: { params: Promise<{ po: st
         </div>
       </Card>
 
-      {user && canPaste(user.role) && (
-        <Card title="Paste details for this PO">
-          <p className="mb-3 text-xs text-slate-500">
-            Paste a table straight from an e-mail — booking details, container and vessel,
-            BL numbers. Columns are matched to tracker fields automatically and previewed
-            before anything is written.
-          </p>
-          <PastePanel buyerPo={d.buyer_po} onApplied={refresh} />
-        </Card>
-      )}
-
       {active && (
         <div>
           {d.lines.length > 1 && (
@@ -137,6 +126,17 @@ export default function PurchaseOrderPage({ params }: { params: Promise<{ po: st
             onSaved={refresh}
           />
         </div>
+      )}
+
+      {user && canPaste(user.role) && (
+        <Card title="Paste details for this PO">
+          <p className="mb-3 text-xs text-slate-500">
+            Paste a table straight from an e-mail — booking details, container and vessel,
+            BL numbers. Columns are matched to tracker fields automatically and previewed
+            before anything is written.
+          </p>
+          <PastePanel buyerPo={d.buyer_po} onApplied={refresh} />
+        </Card>
       )}
     </div>
   );
