@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { canEditOrderDetails, canEditSource } from "@/lib/permissions";
+import { canEditIdentity, canEditField } from "@/lib/permissions";
 import { Button, Card, Spinner, ErrorNote } from "@/components/ui";
 import type { TrackerColumn, TrackerRow } from "@/lib/types";
 
@@ -22,7 +22,7 @@ export default function ManualEntryPage() {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const allowed = !!user && canEditOrderDetails(user.role);
+  const allowed = !!user && canEditIdentity(user.role);
 
   const columns = useQuery({
     queryKey: ["tracker-columns"],
@@ -71,7 +71,7 @@ export default function ManualEntryPage() {
 
       {GROUPS.map((g) => {
         const groupCols = cols.filter(
-          (c) => g.sources.includes(c.source) && canEditSource(user!.role, c.source),
+          (c) => g.sources.includes(c.source) && canEditField(user!.role, c),
         );
         if (groupCols.length === 0) return null;
         return (
