@@ -74,10 +74,13 @@ export function cellClassRulesFor(key: string) {
   };
 }
 
-/** Rows with no factory side yet are context, not problems - muted, not coloured. */
+/** A row with no factory side yet is incomplete, not wrong.
+ *
+ * Marked with an edge rule rather than dimmed: greying reads as "disabled" in
+ * almost every interface, and these rows are perfectly editable. */
 export function trackerRowClass(p: RowClassParams) {
-  const row = p.data as { __hasVendor?: boolean } | undefined;
-  return row && row.__hasVendor === false ? "tg-row-novendor" : undefined;
+  const row = p.data as { __hasVendorData?: boolean } | undefined;
+  return row && row.__hasVendorData === false ? "tg-row-novendor" : undefined;
 }
 
 /** The same rules, for a single field outside the grid (the per-PO view).
