@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import {
   AllCommunityModule,
@@ -48,6 +48,8 @@ export function TrackerGrid({
   onSaved,
   height = 460,
   quickFilterText = "",
+  visibleKeys = null,
+  filterModel = null,
 }: {
   rows: TrackerRow[];
   columns: TrackerColumn[];
@@ -55,6 +57,10 @@ export function TrackerGrid({
   onSaved: () => void;
   height?: number;
   quickFilterText?: string;
+  /** Field chips: show only these columns. null shows every column. */
+  visibleKeys?: string[] | null;
+  /** Filter chips, already translated to an AG Grid filter model. */
+  filterModel?: Record<string, unknown> | null;
 }) {
   const { theme } = useTheme();
   const canEdit = canUseExcelView(role);
@@ -116,6 +122,11 @@ export function TrackerGrid({
         // Colour, and Style alone repeats across POs and colours, so a lone
         // pinned Style column shows rows you cannot tell apart.
         pinned: IDENTITY_COLUMNS.includes(c.key) ? ("left" as const) : undefined,
+        // Identity is never hidden by a projection: without PO#/Style/Colour
+        // the remaining columns cannot be attributed to a shipment.
+        hide: visibleKeys
+          ? !visibleKeys.includes(c.key) && !IDENTITY_COLUMNS.includes(c.key)
+          : false,
         // Type-aware filters + the always-visible floating filter row. This is
         // the Excel autofilter bar; it was switched off by `filter: false`.
         filter:
@@ -147,7 +158,7 @@ export function TrackerGrid({
           : {}),
         } as ColDef;
       }),
-    [columns, editing, role, highlight],
+    [columns, editing, role, highlight, visibleKeys],
   );
 
   const onCellValueChanged = (event: CellValueChangedEvent) => {
@@ -199,6 +210,14 @@ export function TrackerGrid({
       diff: sum("price_difference"),
     });
   }, []);
+
+  // Chips and the floating filter row are one state, not two: applying chips
+  // writes into the same filter model the header row edits.
+  useEffect(() => {
+    const grid = apiRef.current;
+    if (!grid) return;
+    grid.setFilterModel(filterModel && Object.keys(filterModel).length ? filterModel : null);
+  }, [filterModel]);
 
   const onGridReady = (event: GridReadyEvent) => {
     apiRef.current = event.api;

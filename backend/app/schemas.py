@@ -106,6 +106,10 @@ class TrackerColumnOut(BaseModel):
     is_price: bool = False
     is_identity: bool = False
     is_derived: bool = False
+    # how people actually write this column ("po no", "supplier", "sailing
+    # date"). Already maintained for paste-matching; the UI's field search uses
+    # the same vocabulary so both understand the same words.
+    aliases: list[str] = []
 
 
 class TrackerRowOut(BaseModel):

@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiDownload } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canViewTracker } from "@/lib/permissions";
-import { Button, Card, Input, Spinner, ErrorNote } from "@/components/ui";
+import { Button, Card, Spinner, ErrorNote } from "@/components/ui";
 import { TrackerGrid } from "@/components/TrackerGrid";
+import { FieldChipBar } from "@/components/FieldChipBar";
+import {
+  chipsToFilterModel,
+  quickFilterFromChips,
+  visibleKeysFromChips,
+  vocabularyFromColumns,
+  type Chip,
+} from "@/lib/fieldVocabulary";
 import type { TrackerColumn, TrackerRow } from "@/lib/types";
 
 function todayDdMmYyyy(): string {
@@ -19,7 +27,7 @@ function todayDdMmYyyy(): string {
 export default function TrackerPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [search, setSearch] = useState("");
+  const [chips, setChips] = useState<Chip[]>([]);
   const allowed = !!user && canViewTracker(user.role);
 
   const columns = useQuery({
@@ -38,6 +46,27 @@ export default function TrackerPage() {
     enabled: allowed,
   });
 
+  const cols = useMemo(() => columns.data ?? [], [columns.data]);
+  const vocabulary = useMemo(() => vocabularyFromColumns(cols), [cols]);
+
+  // Presets come from the column's own `source`, the same grouping the per-PO
+  // view uses, so there is no second taxonomy to keep in step. The typed bar is
+  // the power path; these are the discoverable one.
+  const presets = useMemo(() => {
+    const of = (...sources: TrackerColumn["source"][]) =>
+      cols.filter((c) => sources.includes(c.source)).map((c) => c.key);
+    return [
+      { label: "Buyer", keys: of("buyer", "const") },
+      { label: "Vendor", keys: of("vendor", "calc") },
+      { label: "Shipping", keys: of("operational") },
+      { label: "Money", keys: cols.filter((c) => c.is_price).map((c) => c.key) },
+    ].filter((p) => p.keys.length > 0);
+  }, [cols]);
+
+  const visibleKeys = useMemo(() => visibleKeysFromChips(chips), [chips]);
+  const filterModel = useMemo(() => chipsToFilterModel(chips), [chips]);
+  const quickFilter = useMemo(() => quickFilterFromChips(chips), [chips]);
+
   if (user && !allowed)
     return <ErrorNote message="Your role does not have access to the shipment tracker." />;
 
@@ -55,14 +84,12 @@ export default function TrackerPage() {
         </Button>
       </div>
 
-      <div className="max-w-xs">
-        <Input
-          type="search"
-          placeholder="Search every column…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
+      <FieldChipBar
+        vocabulary={vocabulary}
+        chips={chips}
+        onChange={setChips}
+        presets={presets}
+      />
 
       {(columns.error || rows.error) && (
         <ErrorNote message={((columns.error || rows.error) as Error).message} />
@@ -74,9 +101,11 @@ export default function TrackerPage() {
         ) : (
           <TrackerGrid
             rows={rows.data ?? []}
-            columns={columns.data ?? []}
+            columns={cols}
             role={user!.role}
-            quickFilterText={search}
+            quickFilterText={quickFilter}
+            visibleKeys={visibleKeys}
+            filterModel={filterModel}
             onSaved={() => qc.invalidateQueries({ queryKey: ["tracker"] })}
           />
         )}

@@ -21,7 +21,7 @@ from app.schemas import (
     TrackerRowOut,
     TrackerRowUpdate,
 )
-from app.services import tracker_map as tm
+from app.services import paste_map, tracker_map as tm
 from app.services.tracker_edit import apply_tracker_fields
 from app.services.tracker_export import tracker_workbook_bytes
 
@@ -38,6 +38,7 @@ def columns(user: User = Depends(require_tracker_view)):
             is_price=c["key"] in tm.PRICE_KEYS,
             is_identity=c["key"] in tm.IDENTITY_KEYS,
             is_derived=c["key"] in tm.DERIVED_KEYS,
+            aliases=paste_map.ALIASES.get(c["key"], []),
         )
         for c in tm.TRACKER_COLUMNS
     ]

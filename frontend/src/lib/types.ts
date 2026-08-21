@@ -90,6 +90,9 @@ export interface TrackerColumn {
   is_identity: boolean;
   /** Computed (price difference) - read-only for everyone. */
   is_derived: boolean;
+  /** How people actually write this column ("po no", "supplier", "sailing
+   * date"), from the same vocabulary that drives paste-matching. */
+  aliases?: string[];
 }
 
 export interface TrackerRow {
