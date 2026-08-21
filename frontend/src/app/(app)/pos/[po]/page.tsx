@@ -9,7 +9,8 @@ import { canAssignSeason, canPaste, canViewPos } from "@/lib/permissions";
 import { Badge, Button, Card, Select, Spinner, ErrorNote } from "@/components/ui";
 import { PoLineCard } from "@/components/PoLineCard";
 import { PastePanel } from "@/components/PastePanel";
-import type { PoDetail, PoSchema, Season } from "@/lib/types";
+import { clsx } from "@/components/clsx";
+import type { PoDetail, PoLine, PoSchema, Season } from "@/lib/types";
 
 const nf = new Intl.NumberFormat();
 
@@ -19,6 +20,7 @@ export default function PurchaseOrderPage({ params }: { params: Promise<{ po: st
   const { user } = useAuth();
   const qc = useQueryClient();
   const allowed = !!user && canViewPos(user.role);
+  const [activeRowId, setActiveRowId] = useState<number | null>(null);
 
   const schema = useQuery({
     queryKey: ["po-schema"],
@@ -38,6 +40,10 @@ export default function PurchaseOrderPage({ params }: { params: Promise<{ po: st
   if (detail.error) return <ErrorNote message={(detail.error as Error).message} />;
 
   const d = detail.data!;
+  // the tab in view — falls back to the first line when the PO reloads and the
+  // previously selected row is gone
+  const active: PoLine | undefined =
+    d.lines.find((l) => l.tracker_row_id === activeRowId) ?? d.lines[0];
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["po", buyerPo] });
     qc.invalidateQueries({ queryKey: ["pos"] });
@@ -85,19 +91,53 @@ export default function PurchaseOrderPage({ params }: { params: Promise<{ po: st
         </Card>
       )}
 
-      <div className="space-y-4">
-        {d.lines.map((line) => (
+      {active && (
+        <div>
+          {d.lines.length > 1 && (
+            <div
+              role="tablist"
+              aria-label="Order lines"
+              className="mb-3 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-800"
+            >
+              {d.lines.map((line) => {
+                const isActive = line.tracker_row_id === active.tracker_row_id;
+                return (
+                  <button
+                    key={line.tracker_row_id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setActiveRowId(line.tracker_row_id)}
+                    className={clsx(
+                      "flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm",
+                      isActive
+                        ? "border-blue-500 font-semibold text-blue-600 dark:text-blue-400"
+                        : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
+                    )}
+                  >
+                    <span>
+                      {line.style_no ?? "—"} · {line.colour ?? "—"}
+                    </span>
+                    {line.has_buyer && <Badge color="blue">buyer</Badge>}
+                    {line.has_vendor && <Badge color="green">vendor</Badge>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           <PoLineCard
-            key={line.tracker_row_id}
+            key={active.tracker_row_id}
             buyerPo={d.buyer_po}
-            line={line}
+            line={active}
             groups={schema.data?.groups ?? []}
             fields={schema.data?.fields ?? []}
             role={user!.role}
+            showTitle={d.lines.length === 1}
             onSaved={refresh}
           />
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
