@@ -16,9 +16,14 @@ RUN uv sync --frozen --no-dev --no-install-project
 # app source
 COPY app ./app
 
+# migrations — prestart runs `alembic upgrade head`, which needs both the config
+# and the version scripts present in the image
+COPY alembic.ini ./alembic.ini
+COPY alembic ./alembic
+
 RUN mkdir -p /data/uploads
 
 EXPOSE 8000
 
-# wait for the DB + seed the admin, then serve
+# wait for the DB, migrate, seed the admin, then serve
 CMD ["sh", "-c", "python -m app.prestart && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

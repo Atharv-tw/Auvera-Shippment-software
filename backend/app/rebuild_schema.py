@@ -1,14 +1,16 @@
-"""Drop every table and recreate it from the models. **Destructive.**
+"""Drop every table and replay the migrations from scratch. **Destructive.**
 
-``create_all`` only ever *adds* tables - it never alters an existing one. So
-when a model gains a column, a database that already has that table keeps the
-old shape and every query against it fails. On a deployment that shows up as a
-500, and because a 500 escapes before the CORS middleware can touch it, the
-browser reports it as a CORS error instead.
+This is a **dev reset and a break-glass tool, not the normal path.** Schema
+changes ship as Alembic migrations now:
 
-While the data is still throwaway this is the fix: drop and rebuild. Once there
-is data worth keeping, this script stops being appropriate and the project needs
-real migrations (Alembic is already a declared dependency).
+    uv run alembic revision --autogenerate -m "what changed"
+    uv run alembic upgrade head
+
+Reach for this script only to wipe a throwaway dev database back to a clean
+seeded state, or on a deployment whose schema has drifted beyond what a
+migration can reconcile. It drops every table, users included, then rebuilds by
+running ``alembic upgrade head`` - so the result is exactly what the migration
+path produces, never a create_all shortcut that could diverge from it.
 
 Run::
 
@@ -23,6 +25,8 @@ import os
 import shutil
 import sys
 from pathlib import Path
+
+from sqlalchemy import text
 
 from app.config import get_settings
 from app.database import Base, engine
@@ -55,9 +59,16 @@ def rebuild(confirm: bool = True) -> None:
             return
 
     Base.metadata.drop_all(bind=engine)
+    # ...including Alembic's own bookkeeping, so the rebuild replays every
+    # migration from zero rather than starting from a stale version marker.
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
     print("Dropped all tables.")
-    Base.metadata.create_all(bind=engine)
-    print(f"Recreated {len(Base.metadata.sorted_tables)} tables from the models.")
+
+    from app.migrate import upgrade_head
+
+    upgrade_head()
+    print(f"Recreated {len(Base.metadata.sorted_tables)} tables by replaying migrations.")
 
     upload_dir = Path(settings.upload_dir)
     if upload_dir.exists():

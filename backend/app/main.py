@@ -16,10 +16,11 @@ log = logging.getLogger("app")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Creates any table that does not exist yet. It never *alters* one, so a
-    # model that gains a column needs `python -m app.rebuild_schema` (or
-    # REBUILD_SCHEMA=true on a deployment) while the data is still throwaway.
-    Base.metadata.create_all(bind=engine)
+    # Schema is owned by Alembic - `alembic upgrade head`, run from prestart on a
+    # deployment. Deliberately NOT create_all: it only ever adds tables, never
+    # alters one, so leaving it here would silently paper over a missing
+    # migration and the mismatch would resurface as a 500 (which, escaping past
+    # CORSMiddleware, shows up in the browser as a bogus CORS error).
     yield
 
 
