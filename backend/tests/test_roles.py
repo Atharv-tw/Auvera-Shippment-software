@@ -59,29 +59,48 @@ def test_merchant_cannot_view_tracker(client):
     assert client.get("/api/orders", headers=_auth(merchant)).status_code == 200
 
 
-def test_shipping_manager_edits_operational_not_order_details(client):
+def test_shipping_manager_edits_everything_except_price(client):
     _, _, shipping, _, rid = _bootstrap(client)
     # operational field: allowed
     r = client.patch(f"/api/tracker/{rid}", json={"fields": {"container_no": "C1"}},
                      headers=_auth(shipping))
     assert r.status_code == 200, r.text
     assert r.json()["data"]["container_no"] == "C1"
-    # order-detail field: forbidden
+    # order detail that is not money: allowed too, unlike the old lane model
     r = client.patch(f"/api/tracker/{rid}", json={"fields": {"order_qty": 999}},
+                     headers=_auth(shipping))
+    assert r.status_code == 200, r.text
+    # money: forbidden
+    r = client.patch(f"/api/tracker/{rid}", json={"fields": {"buyer_net_price": 1.5}},
+                     headers=_auth(shipping))
+    assert r.status_code == 403
+    # the row's identity is CEO/admin only - changing it would re-key the row
+    r = client.patch(f"/api/tracker/{rid}", json={"fields": {"buyer_po": "NOPE"}},
                      headers=_auth(shipping))
     assert r.status_code == 403
 
 
-def test_ceo_edits_order_details_not_operational(client):
+def test_ceo_edits_everything_including_price(client):
     _, ceo, _, _, rid = _bootstrap(client)
-    # order-detail field: allowed
     r = client.patch(f"/api/tracker/{rid}", json={"fields": {"order_qty": 123}},
                      headers=_auth(ceo))
     assert r.status_code == 200, r.text
     assert str(r.json()["data"]["order_qty"]) == "123"
-    # operational field: forbidden
+    # operational is no longer off-limits to the CEO
     r = client.patch(f"/api/tracker/{rid}", json={"fields": {"container_no": "X"}},
                      headers=_auth(ceo))
+    assert r.status_code == 200, r.text
+    # and money is theirs
+    r = client.patch(f"/api/tracker/{rid}", json={"fields": {"buyer_net_price": 12.5}},
+                     headers=_auth(ceo))
+    assert r.status_code == 200, r.text
+    assert float(r.json()["data"]["buyer_net_price"]) == 12.5
+
+
+def test_price_difference_is_never_hand_edited(client):
+    admin, _, _, _, rid = _bootstrap(client)
+    r = client.patch(f"/api/tracker/{rid}", json={"fields": {"price_difference": 99}},
+                     headers=_auth(admin))
     assert r.status_code == 403
 
 
