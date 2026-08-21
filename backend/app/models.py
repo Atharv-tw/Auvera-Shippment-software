@@ -160,6 +160,10 @@ class TrackerRow(Base, TimestampMixin):
     # tests/test_tracker_columns.py is the guard, and it fails loudly where
     # metaprogramming would fail silently. buyer_po / style_no / colour are
     # tracker columns too; they are declared above as the row identity.
+    # A few operational columns are Text rather than String(255): they hold
+    # accumulated lists or free notes (BL/AWB/FCR No. already carries three
+    # numbers and a carrier in one cell). SQLite ignores column lengths, so an
+    # overflow here would pass every dev test and fail only on Postgres.
     # A  Company code
     company_code: Mapped[str | None] = mapped_column(String(255))
     # B  Customer Name
@@ -207,7 +211,7 @@ class TrackerRow(Base, TimestampMixin):
     # Z  Shipment ETA (Confirm by forwarder)
     eta: Mapped[date | None] = mapped_column(Date)
     # AA  BL/AWB/FCR No.
-    bl_no: Mapped[str | None] = mapped_column(String(255))
+    bl_no: Mapped[str | None] = mapped_column(Text)
     # AB  BL/AWB/FCR Date
     bl_date: Mapped[date | None] = mapped_column(Date)
     # AC  Post shipping / Docs received from  vendor
@@ -253,7 +257,7 @@ class TrackerRow(Base, TimestampMixin):
     # AW  Actual H/o date/FCR date
     actual_ho_date: Mapped[date | None] = mapped_column(Date)
     # AX  Container No.
-    container_no: Mapped[str | None] = mapped_column(String(255))
+    container_no: Mapped[str | None] = mapped_column(Text)
     # AY  Container Size
     container_size: Mapped[str | None] = mapped_column(String(255))
     # AZ  LCL/FCL
@@ -263,7 +267,7 @@ class TrackerRow(Base, TimestampMixin):
     # BB  Voyage
     voyage: Mapped[str | None] = mapped_column(String(255))
     # BC  Post shipping Docs share to the customer via mail
-    docs_shared_customer: Mapped[str | None] = mapped_column(String(255))
+    docs_shared_customer: Mapped[str | None] = mapped_column(Text)
     # BD  date
     docs_shared_date: Mapped[date | None] = mapped_column(Date)
 

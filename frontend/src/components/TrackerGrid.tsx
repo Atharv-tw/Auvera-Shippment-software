@@ -147,6 +147,14 @@ export function TrackerGrid({
               valueFormatter: (p: { value: unknown }) => toDisplayDate(p.value),
               valueParser: (p: { newValue: unknown }) => toIsoDate(p.newValue),
               cellEditorParams: { useFormatter: true },
+              // Dates are stored ISO but shown dd-mm-yyyy. The quick filter
+              // matches the stored value by default, so searching the date you
+              // can actually see on screen would find nothing. Offer both.
+              getQuickFilterText: (p: { value: unknown }) => {
+                const shown = toDisplayDate(p.value);
+                const raw = p.value == null ? "" : String(p.value);
+                return shown && shown !== raw ? `${shown} ${raw}` : raw;
+              },
               // Cells hold ISO strings, and agDateColumnFilter compares Dates -
               // without this the date filters silently match nothing.
               filterParams: {
