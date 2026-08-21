@@ -147,6 +147,9 @@ export function PoLineCard({
           const groupFields = byGroup.get(g.key) ?? [];
           if (groupFields.length === 0) return null;
           const isOpen = !closed[g.key];
+          // how much of the section is actually filled in — live, so it moves while editing
+          const filled = groupFields.filter((f) => value(f) !== "").length;
+          const pct = Math.round((filled / groupFields.length) * 100);
           return (
             <section key={g.key}>
               <button
@@ -154,11 +157,23 @@ export function PoLineCard({
                 aria-label={`${g.label} (${isOpen ? "collapse" : "expand"})`}
                 aria-expanded={isOpen}
                 onClick={() => setClosed((c) => ({ ...c, [g.key]: !c[g.key] }))}
-                className="mb-2 flex w-full cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                className="mb-2 flex cursor-pointer items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white"
               >
                 <span>{g.label}</span>
-                <span className="text-[10px]">{isOpen ? "▾" : "▸"}</span>
-                <span className="h-px flex-1 bg-slate-100 dark:bg-slate-800" />
+                <span
+                  title={`${filled} of ${groupFields.length} fields filled`}
+                  className={clsx(
+                    "rounded-full px-1.5 py-0.5 text-[10px] font-medium tabular-nums",
+                    pct === 100
+                      ? "bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-400"
+                      : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+                  )}
+                >
+                  {pct}%
+                </span>
+                <span className="text-[10px] font-normal text-slate-400">
+                  {isOpen ? "▾" : "▸"}
+                </span>
               </button>
 
               {isOpen && (
