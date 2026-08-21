@@ -21,6 +21,7 @@ import { canEditField, canUseExcelView, lockReason } from "@/lib/permissions";
 import { Button, ErrorNote } from "@/components/ui";
 import { toDisplayDate, toIsoDate } from "@/lib/dateFormat";
 import { cellClassRulesFor, isoToNumber, trackerRowClass } from "@/lib/trackerHighlights";
+import { SetFilter } from "@/components/SetFilter";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -129,12 +130,14 @@ export function TrackerGrid({
           : false,
         // Type-aware filters + the always-visible floating filter row. This is
         // the Excel autofilter bar; it was switched off by `filter: false`.
+        // Text columns get the tick-list; numbers and dates keep their range
+        // filters, which say more about a quantity than a list of values would.
         filter:
           c.type === "number"
             ? "agNumberColumnFilter"
             : c.type === "date"
               ? "agDateColumnFilter"
-              : "agTextColumnFilter",
+              : SetFilter,
         cellClassRules: highlight ? cellClassRulesFor(c.key) : undefined,
         ...(c.type === "date"
           ? {
