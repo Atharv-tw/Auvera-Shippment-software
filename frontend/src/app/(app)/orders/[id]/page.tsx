@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, Badge, Spinner, ErrorNote } from "@/components/ui";
+import { poLinePath } from "@/lib/routes";
 import type { Order } from "@/lib/types";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -36,7 +37,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">Order {o.order_number}</h1>
         <Badge color="blue">{o.is_confirmation ? "confirmation" : "order"}</Badge>
         <Link
-          href={`/pos/${encodeURIComponent(o.order_number ?? "")}`}
+          href={poLinePath(o.order_number ?? "")}
           className="ml-auto text-sm text-blue-600 hover:underline"
         >
           Open purchase order →
