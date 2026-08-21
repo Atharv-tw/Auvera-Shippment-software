@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Info, X } from "lucide-react";
+import { Info } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
-import type { AuditEntry, Role, TrackerColumn, TrackerRow } from "@/lib/types";
+import type { Role, TrackerColumn, TrackerRow } from "@/lib/types";
 import {
   canEditField,
   canEditTracker,
@@ -12,7 +11,8 @@ import {
   isOrderDetailSource,
   lockReason,
 } from "@/lib/permissions";
-import { Button, ErrorNote, Badge } from "@/components/ui";
+import { Button, ErrorNote } from "@/components/ui";
+import { AuditDrawer } from "@/components/AuditDrawer";
 import { toDisplayDate, toIsoDate } from "@/lib/dateFormat";
 import { clsx } from "@/components/clsx";
 
@@ -185,92 +185,12 @@ export function TrackerFieldView({
 
       {auditCol && (
         <AuditDrawer
-          rowId={row.id}
-          field={auditCol.key}
+          path={`/api/tracker/${row.id}/audit?field=${encodeURIComponent(auditCol.key)}`}
           label={auditCol.label}
           isDate={auditCol.type === "date"}
           onClose={() => setAuditKey(null)}
         />
       )}
-    </div>
-  );
-}
-
-function AuditDrawer({
-  rowId,
-  field,
-  label,
-  isDate,
-  onClose,
-}: {
-  rowId: number;
-  field: string;
-  label: string;
-  isDate: boolean;
-  onClose: () => void;
-}) {
-  const q = useQuery({
-    queryKey: ["audit", rowId, field],
-    queryFn: () =>
-      api<AuditEntry[]>(`/api/tracker/${rowId}/audit?field=${encodeURIComponent(field)}`),
-  });
-
-  return (
-    <div className="fixed inset-0 z-40 flex justify-end">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <aside className="relative z-50 flex h-full w-full max-w-md flex-col border-l border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-          <div>
-            <div className="text-xs uppercase tracking-wide text-slate-400">Change trail</div>
-            <div className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">{label}</div>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          {q.isLoading && <div className="text-sm text-slate-400">Loading…</div>}
-          {q.error && <ErrorNote message={(q.error as Error).message} />}
-          {q.data && q.data.length === 0 && (
-            <div className="text-sm text-slate-400">No recorded changes for this field yet.</div>
-          )}
-          <ol className="space-y-3">
-            {(q.data ?? []).map((e) => (
-              <li
-                key={e.id}
-                className="rounded-md border border-slate-100 p-3 text-sm dark:border-slate-800"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-800 dark:text-slate-200">
-                    {e.user_name ?? "Unknown"}
-                  </span>
-                  <Badge
-                    color={e.action === "import" ? "gray" : e.action === "manual" ? "blue" : "green"}
-                  >
-                    {e.action}
-                  </Badge>
-                  <span className="ml-auto text-xs text-slate-400">
-                    {e.created_at ? new Date(e.created_at).toLocaleString() : ""}
-                  </span>
-                </div>
-                <div className="mt-1.5 text-xs text-slate-600 dark:text-slate-400">
-                  <span className="text-slate-400 line-through">
-                    {e.old_value ? (isDate ? toDisplayDate(e.old_value) : e.old_value) : "(empty)"}
-                  </span>
-                  {" → "}
-                  <span className="font-medium text-slate-800 dark:text-slate-200">
-                    {e.new_value ? (isDate ? toDisplayDate(e.new_value) : e.new_value) : "(empty)"}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </aside>
     </div>
   );
 }
