@@ -15,8 +15,9 @@ from sqlalchemy.orm import Session
 
 from app import permissions
 from app.database import get_db
-from app.dependencies import require_po_view
+from app.dependencies import require_audit, require_po_view
 from app.models import (
+    AuditLog,
     Order,
     OrderLine,
     POSeason,
@@ -26,6 +27,7 @@ from app.models import (
     VendorOrderLine,
 )
 from app.schemas import (
+    AuditEntryOut,
     PoDetailOut,
     PoFieldSpec,
     PoLineOut,
@@ -209,6 +211,42 @@ def get_po(
             "vendor_total_value": sum(_num((r.data or {}).get("vendor_total_value")) for r in rows),
         },
     )
+
+
+@router.get("/{buyer_po}/rows/{row_id}/audit", response_model=list[AuditEntryOut])
+def po_row_audit(
+    buyer_po: str,
+    row_id: int,
+    field: str | None = None,
+    origin: str = "tracker",
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_audit),
+):
+    """Who changed a field on this line, and what it was before.
+
+    A PO line spans two records, so the trail does too: tracker columns are
+    logged against the tracker row, order-sheet fields against the order line
+    behind it. ``origin`` picks which, matching the field's own ``origin``.
+    """
+    row = db.get(TrackerRow, row_id)
+    if row is None or row.buyer_po != buyer_po:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "That line is not on this purchase order")
+
+    if origin == "order_line":
+        buyer_line, vendor_line = _lines_for(db, row)
+        target = buyer_line or vendor_line
+        if target is None:
+            return []
+        entity_type, entity_id = "order_line", target.id
+    else:
+        entity_type, entity_id = "tracker", row.id
+
+    q = db.query(AuditLog).filter(
+        AuditLog.entity_type == entity_type, AuditLog.entity_id == entity_id
+    )
+    if field:
+        q = q.filter(AuditLog.field_key == field)
+    return q.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).all()
 
 
 @router.patch("/{buyer_po}/rows/{row_id}", response_model=PoLineOut)
