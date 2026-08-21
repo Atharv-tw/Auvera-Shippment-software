@@ -21,9 +21,17 @@ export const ROLE_LABELS: Record<Role, string> = {
   vendor: "Vendor",
 };
 
-/** The Shipment Tracker itself — merchants have no business here. */
+/** The Shipment Tracker page itself, and every write to it. */
 export const canViewTracker = (r: Role) =>
   r === "admin" || r === "ceo" || r === "shipping_manager";
+
+/** Read-only tracker rows, for the dashboard's Shipment Tracker panel.
+ *
+ * Wider than `canViewTracker` on purpose: the panel's columns are all order
+ * facts a merchant already sees per-PO. The tracker page, its export and its
+ * edits are the shipping team's, and stay on `canViewTracker`.
+ */
+export const canReadTrackerRows = (r: Role) => canViewTracker(r) || r === "merchant";
 
 /** The per-PO view: everyone who works orders, merchants included. */
 export const canViewPos = (r: Role) =>

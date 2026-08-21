@@ -52,10 +52,15 @@ def test_cannot_self_register_admin(client):
     assert r.status_code == 403
 
 
-def test_merchant_cannot_view_tracker(client):
-    _, _, _, merchant, _ = _bootstrap(client)
-    assert client.get("/api/tracker", headers=_auth(merchant)).status_code == 403
-    # ...but can view order details
+def test_merchant_reads_tracker_rows_but_gets_no_tracker_page(client):
+    _, _, _, merchant, rid = _bootstrap(client)
+    # the dashboard's Shipment Tracker panel reads the rows...
+    assert client.get("/api/tracker", headers=_auth(merchant)).status_code == 200
+    # ...but the tracker page's own endpoints, and every write, stay shut
+    assert client.get("/api/tracker/columns", headers=_auth(merchant)).status_code == 403
+    assert client.patch(f"/api/tracker/{rid}", json={"fields": {"container_no": "C1"}},
+                        headers=_auth(merchant)).status_code == 403
+    # ...and order details were always fine
     assert client.get("/api/orders", headers=_auth(merchant)).status_code == 200
 
 

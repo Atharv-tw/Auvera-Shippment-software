@@ -36,8 +36,18 @@ ALL_ROLES = (ADMIN, CEO, SHIPPING_MANAGER, MERCHANT)
 
 
 def can_view_tracker(role: str) -> bool:
-    """The Shipment Tracker itself - merchants have no business here."""
+    """The Shipment Tracker page itself, and every write to it."""
     return role in (ADMIN, CEO, SHIPPING_MANAGER)
+
+
+def can_read_tracker_rows(role: str) -> bool:
+    """Read-only tracker rows, for the dashboard's Shipment Tracker panel.
+
+    Deliberately wider than ``can_view_tracker``: merchants see the panel, but
+    the tracker page, the export and every tracker write stay shut to them,
+    because those all hang off ``can_view_tracker``.
+    """
+    return can_view_tracker(role) or role == MERCHANT
 
 
 def can_view_pos(role: str) -> bool:

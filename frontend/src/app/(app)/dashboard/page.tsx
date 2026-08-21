@@ -1,11 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { Button, Card, Spinner, ErrorNote } from "@/components/ui";
-import { canViewTracker, canUpload, canEditIdentity, canViewPos } from "@/lib/permissions";
+import { Button, Card, Input, Spinner, ErrorNote } from "@/components/ui";
+import {
+  canViewTracker,
+  canReadTrackerRows,
+  canUpload,
+  canEditIdentity,
+  canViewPos,
+} from "@/lib/permissions";
 import { poLinePath } from "@/lib/routes";
 import { toDisplayDate } from "@/lib/dateFormat";
 import type { Order, TrackerRow, VendorOrder } from "@/lib/types";
@@ -28,9 +35,15 @@ function StatCard({ label, value }: { label: string; value: number | string }) {
   );
 }
 
+/** Rows in the dashboard panel. The tracker page itself shows all of them. */
+const PANEL_ROWS = 12;
+
 export default function DashboardPage() {
   const { user } = useAuth();
-  const showTracker = !!user && canViewTracker(user.role);
+  // the panel is order data, open to merchants; the tracker page is not
+  const showTracker = !!user && canReadTrackerRows(user.role);
+  const canOpenTracker = !!user && canViewTracker(user.role);
+  const [search, setSearch] = useState("");
   const orders = useQuery({ queryKey: ["orders"], queryFn: () => api<Order[]>("/api/orders") });
   const vendors = useQuery({
     queryKey: ["vendor-orders"],
@@ -44,6 +57,18 @@ export default function DashboardPage() {
 
   if (orders.isLoading || (showTracker && tracker.isLoading)) return <Spinner />;
   const error = orders.error || (showTracker && tracker.error) || vendors.error;
+
+  // filtered here rather than through the API's `?search=`: the rows are all in
+  // hand already, and this also matches on factory, which the query does not
+  const needle = search.trim().toLowerCase();
+  const rows = tracker.data ?? [];
+  const matches = needle
+    ? rows.filter((r) =>
+        [r.buyer_po, r.style_no, r.colour, r.data.factory_name].some((v) =>
+          String(v ?? "").toLowerCase().includes(needle),
+        ),
+      )
+    : rows;
 
   return (
     <div className="space-y-6">
@@ -88,9 +113,21 @@ export default function DashboardPage() {
       <Card
         title="Shipment Tracker"
         actions={
-          <Link href="/tracker" className="text-sm text-blue-600 hover:underline">
-            Open tracker →
-          </Link>
+          <div className="flex items-center gap-3">
+            <div className="w-56">
+              <Input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search PO, style, colour, factory…"
+              />
+            </div>
+            {canOpenTracker && (
+              <Link href="/tracker" className="shrink-0 text-sm text-blue-600 hover:underline">
+                Open tracker →
+              </Link>
+            )}
+          </div>
         }
       >
         <div className="overflow-x-auto">
@@ -103,11 +140,11 @@ export default function DashboardPage() {
                 <th className="py-2 pr-4">Factory</th>
                 <th className="py-2 pr-4">Order qty</th>
                 <th className="py-2 pr-4">Factory cost</th>
-                <th className="py-2 pr-4">Delivery</th>
+                <th className="py-2 pr-4">Buyer delivery</th>
               </tr>
             </thead>
             <tbody>
-              {(tracker.data ?? []).slice(0, 12).map((r) => (
+              {matches.slice(0, PANEL_ROWS).map((r) => (
                 <tr key={r.id} className="border-t border-slate-100 dark:border-slate-800">
                   <td className="py-2 pr-4">
                     <Link
@@ -129,16 +166,27 @@ export default function DashboardPage() {
                   </td>
                 </tr>
               ))}
-              {tracker.data?.length === 0 && (
+              {matches.length === 0 && (
                 <tr>
                   <td colSpan={7} className="py-6 text-center text-slate-400">
-                    No tracker rows yet. {user && canUpload(user.role) ? "Upload some order sheets." : ""}
+                    {needle
+                      ? `Nothing matches “${search.trim()}”.`
+                      : `No tracker rows yet. ${
+                          user && canUpload(user.role) ? "Upload some order sheets." : ""
+                        }`}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        {matches.length > PANEL_ROWS && (
+          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+            Showing {PANEL_ROWS} of {matches.length} rows
+            {needle ? " that match" : ""}
+            {canOpenTracker ? " — open the tracker for the rest." : "."}
+          </p>
+        )}
       </Card>
       )}
 

@@ -9,6 +9,7 @@ from app.database import get_db
 from app.dependencies import (
     require_admin,
     require_audit,
+    require_tracker_read,
     require_tracker_view,
 )
 from app.models import AuditLog, TrackerRow, User
@@ -58,7 +59,7 @@ def export_tracker(db: Session = Depends(get_db), user: User = Depends(require_t
 def list_tracker(
     search: str | None = None,
     db: Session = Depends(get_db),
-    user: User = Depends(require_tracker_view),
+    user: User = Depends(require_tracker_read),
 ):
     q = db.query(TrackerRow).order_by(TrackerRow.buyer_po, TrackerRow.style_no, TrackerRow.colour)
     if search:

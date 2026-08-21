@@ -160,10 +160,27 @@ def test_only_admin_manages_vendors(client, loaded):
 
 def test_merchant_has_pos_but_no_tracker(client, loaded):
     users, _ = loaded
-    assert client.get("/api/tracker", headers=_auth(users["merchant"])).status_code == 403
     r = client.get("/api/pos", headers=_auth(users["merchant"]))
     assert r.status_code == 200, r.text
     assert [p["buyer_po"] for p in r.json()] == ["D652"]
+
+
+def test_merchant_reads_tracker_rows_but_cannot_touch_them(client, loaded):
+    """The dashboard panel needs the rows; nothing else about the tracker opens up."""
+    users, _ = loaded
+    m = _auth(users["merchant"])
+
+    rows = client.get("/api/tracker", headers=m)
+    assert rows.status_code == 200, rows.text
+    row_id = rows.json()[0]["id"]
+
+    # read-only: every write, the export and the column list stay shut
+    assert client.patch(f"/api/tracker/{row_id}", json={"fields": {"lot_no": "9"}},
+                        headers=m).status_code == 403
+    assert client.patch("/api/tracker/lines", json={"updates": {}}, headers=m).status_code == 403
+    assert client.post("/api/tracker", json={"fields": {}}, headers=m).status_code == 403
+    assert client.get("/api/tracker/export", headers=m).status_code == 403
+    assert client.get("/api/tracker/columns", headers=m).status_code == 403
 
 
 def test_merchant_edits_a_po_but_not_its_prices(client, loaded):

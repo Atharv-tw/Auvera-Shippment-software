@@ -45,6 +45,13 @@ def require_tracker_view(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def require_tracker_read(user: User = Depends(get_current_user)) -> User:
+    """Read-only tracker rows - merchants included, for the dashboard panel."""
+    if not permissions.can_read_tracker_rows(user.role):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to view the tracker")
+    return user
+
+
 def require_audit(user: User = Depends(get_current_user)) -> User:
     if not permissions.can_view_audit(user.role):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not allowed to view the audit trail")
