@@ -17,7 +17,7 @@ import {
 import { api, ApiError } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import type { Role, TrackerColumn, TrackerRow } from "@/lib/types";
-import { canEditField, canUseExcelView, lockReason } from "@/lib/permissions";
+import { canUseExcelView, lockReason } from "@/lib/permissions";
 import { Button, ErrorNote } from "@/components/ui";
 import { toDisplayDate, toIsoDate } from "@/lib/dateFormat";
 import { cellClassRulesFor, isoToNumber, trackerRowClass } from "@/lib/trackerHighlights";
@@ -90,12 +90,12 @@ export function TrackerGrid({
   const columnDefs: ColDef[] = useMemo(
     () =>
       columns.map((c) => {
-        const canEditThis = canUseExcelView(role) && canEditField(role, c);
+        const canEditThis = canUseExcelView(role) && c.editable;
         // While editing, a column this role cannot write is greyed out and
         // says why on hover - otherwise the only way to find out is to
         // double-click it and watch nothing happen.
         const locked = editing && !canEditThis;
-        const reason = lockReason(role, c);
+        const reason = lockReason(c);
         return {
         field: c.key,
         headerName: c.label,
