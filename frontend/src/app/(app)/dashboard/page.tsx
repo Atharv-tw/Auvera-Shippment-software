@@ -4,10 +4,20 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { Button, Card, Badge, Spinner, ErrorNote } from "@/components/ui";
+import { Button, Card, Spinner, ErrorNote } from "@/components/ui";
 import { canViewTracker, canUpload, canEditIdentity, canViewPos } from "@/lib/permissions";
 import { poLinePath } from "@/lib/routes";
+import { toDisplayDate } from "@/lib/dateFormat";
 import type { Order, TrackerRow, VendorOrder } from "@/lib/types";
+
+const nf = new Intl.NumberFormat();
+
+/** Tracker money cells arrive as numbers or as whatever the sheet held. */
+function money(value: unknown) {
+  if (value === null || value === undefined || value === "") return "—";
+  const n = Number(value);
+  return Number.isFinite(n) ? nf.format(n) : String(value);
+}
 
 function StatCard({ label, value }: { label: string; value: number | string }) {
   return (
@@ -92,7 +102,8 @@ export default function DashboardPage() {
                 <th className="py-2 pr-4">Colour</th>
                 <th className="py-2 pr-4">Factory</th>
                 <th className="py-2 pr-4">Order qty</th>
-                <th className="py-2 pr-4">Sides</th>
+                <th className="py-2 pr-4">Factory cost</th>
+                <th className="py-2 pr-4">Delivery</th>
               </tr>
             </thead>
             <tbody>
@@ -110,15 +121,17 @@ export default function DashboardPage() {
                   <td className="py-2 pr-4">{r.colour}</td>
                   <td className="py-2 pr-4">{String(r.data.factory_name ?? "—")}</td>
                   <td className="py-2 pr-4">{String(r.data.order_qty ?? "—")}</td>
+                  <td className="py-2 pr-4 tabular-nums">
+                    {money(r.data.vendor_total_value)}
+                  </td>
                   <td className="py-2 pr-4">
-                    {r.has_buyer && <Badge color="blue">buyer</Badge>}{" "}
-                    {r.has_vendor && <Badge color="green">vendor</Badge>}
+                    {toDisplayDate(r.data.buyer_po_delivery_date) || "—"}
                   </td>
                 </tr>
               ))}
               {tracker.data?.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-slate-400">
+                  <td colSpan={7} className="py-6 text-center text-slate-400">
                     No tracker rows yet. {user && canUpload(user.role) ? "Upload some order sheets." : ""}
                   </td>
                 </tr>
