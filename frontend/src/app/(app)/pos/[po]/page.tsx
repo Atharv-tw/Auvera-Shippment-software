@@ -97,7 +97,7 @@ export default function PurchaseOrderPage({ params }: { params: Promise<{ po: st
             <div
               role="tablist"
               aria-label="Order lines"
-              className="mb-3 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-slate-800"
+              className="thin-scroll mb-3 flex gap-2 overflow-x-auto pb-2"
             >
               {d.lines.map((line) => {
                 const isActive = line.tracker_row_id === active.tracker_row_id;
@@ -109,10 +109,10 @@ export default function PurchaseOrderPage({ params }: { params: Promise<{ po: st
                     aria-selected={isActive}
                     onClick={() => setActiveRowId(line.tracker_row_id)}
                     className={clsx(
-                      "flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm",
+                      "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-colors",
                       isActive
-                        ? "border-blue-500 font-semibold text-blue-600 dark:text-blue-400"
-                        : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
+                        ? "border-blue-500 bg-blue-50 font-semibold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-slate-200",
                     )}
                   >
                     <span>
