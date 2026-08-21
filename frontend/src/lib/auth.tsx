@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { api, setToken, getToken } from "./api";
 import type { TokenResponse, User } from "./types";
 
@@ -24,6 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!getToken()) {
@@ -36,37 +38,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      const data = await api<TokenResponse>("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
+  // Nothing in the query cache belongs to the next user: the column and field
+  // lists carry *this* user's `editable` answer, and the rest is their data.
+  // Cached with `staleTime: Infinity`, they would otherwise survive a sign-out
+  // and hand the next person the previous one's edit rights.
+  const startSession = useCallback(
+    (data: TokenResponse) => {
+      queryClient.clear();
       setToken(data.access_token);
       setUser(data.user);
       router.push("/dashboard");
     },
-    [router],
+    [queryClient, router],
+  );
+
+  const login = useCallback(
+    async (email: string, password: string) => {
+      startSession(
+        await api<TokenResponse>("/api/auth/login", {
+          method: "POST",
+          body: JSON.stringify({ email, password }),
+        }),
+      );
+    },
+    [startSession],
   );
 
   const register = useCallback(
     async (email: string, password: string, name: string, role: string) => {
-      const data = await api<TokenResponse>("/api/auth/register", {
-        method: "POST",
-        body: JSON.stringify({ email, password, name, role }),
-      });
-      setToken(data.access_token);
-      setUser(data.user);
-      router.push("/dashboard");
+      startSession(
+        await api<TokenResponse>("/api/auth/register", {
+          method: "POST",
+          body: JSON.stringify({ email, password, name, role }),
+        }),
+      );
     },
-    [router],
+    [startSession],
   );
 
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
+    queryClient.clear();
     router.push("/login");
-  }, [router]);
+  }, [queryClient, router]);
 
   return (
     <AuthContext.Provider value={{ user, loading, login, register, logout }}>
