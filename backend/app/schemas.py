@@ -102,7 +102,11 @@ class TrackerColumnOut(BaseModel):
     label: str
     type: str
     source: str
-    # edit gates, mirrored by frontend/src/lib/permissions.ts
+    # May the caller write this column? The one answer, decided by
+    # app/permissions.py - the UI reads it rather than re-deriving the rule.
+    editable: bool = False
+    # why it is locked, for the message on a disabled field. Descriptive only:
+    # nothing infers editability from these.
     is_price: bool = False
     is_identity: bool = False
     is_derived: bool = False
@@ -276,6 +280,8 @@ class PoFieldSpec(BaseModel):
     type: str
     group: str      # buyer | vendor | product | shipping
     origin: str     # tracker | order_line
+    # as on TrackerColumnOut: `editable` is the answer, the flags are the reason
+    editable: bool = False
     is_price: bool = False
     is_identity: bool = False
     is_derived: bool = False
@@ -299,7 +305,6 @@ class PoLineOut(BaseModel):
     line: dict[str, Any] = {}
     sizes: dict[str, Any] = {}
     size_header: list[dict[str, Any]] = []
-    editable_keys: list[str] = []
 
 
 class PoSummaryOut(BaseModel):

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { canEditIdentity, canEditField } from "@/lib/permissions";
+import { canEditIdentity } from "@/lib/permissions";
 import { seasonForValue, seasonLabel } from "@/lib/seasons";
 import { poLinePath } from "@/lib/routes";
 import { Badge, Button, Card, Select, Spinner, ErrorNote } from "@/components/ui";
@@ -185,7 +185,7 @@ export default function ManualEntryPage() {
 
       {GROUPS.map((g) => {
         const groupCols = cols.filter(
-          (c) => g.sources.includes(c.source) && canEditField(user!.role, c),
+          (c) => g.sources.includes(c.source) && c.editable,
         );
         if (groupCols.length === 0) return null;
         return (

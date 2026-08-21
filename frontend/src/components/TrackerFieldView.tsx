@@ -5,7 +5,6 @@ import { Info } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import type { Role, TrackerColumn, TrackerRow } from "@/lib/types";
 import {
-  canEditField,
   canEditTracker,
   canViewAudit,
   isOrderDetailSource,
@@ -24,9 +23,9 @@ const GROUPS: { title: string; sources: string[] }[] = [
 
 /** Label/value form view of a single tracker row.
  *
- * Editing is role-aware per field class: order-detail fields (buyer/vendor) are
- * editable by CEO/admin, operational fields by shipping-manager/admin. CEO/admin
- * also get an info button on each order-detail field that opens the change trail.
+ * Which fields open for editing is the column's own `editable`, as the columns
+ * endpoint answered it for this user. CEO/admin also get an info button on each
+ * order-detail field that opens the change trail.
  */
 export function TrackerFieldView({
   row,
@@ -45,7 +44,6 @@ export function TrackerFieldView({
   const [error, setError] = useState<string | null>(null);
   const [auditKey, setAuditKey] = useState<string | null>(null);
 
-  const editable = (c: TrackerColumn) => canEditField(role, c);
   const showAudit = canViewAudit(role);
   const canEdit = canEditTracker(role);
   const typeByKey = useMemo(
@@ -133,8 +131,8 @@ export function TrackerFieldView({
             </h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {cols.map((c) => {
-                const fieldEditable = editing && editable(c);
-                const locked = editing ? lockReason(role, c) : null;
+                const fieldEditable = editing && c.editable;
+                const locked = editing ? lockReason(c) : null;
                 const auditable = showAudit && isOrderDetailSource(c.source);
                 return (
                   <div

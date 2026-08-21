@@ -17,7 +17,7 @@ import {
 import { api, ApiError } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import type { Role, TrackerColumn, TrackerRow } from "@/lib/types";
-import { canEditField, canUseExcelView, lockReason } from "@/lib/permissions";
+import { canUseExcelView, lockReason } from "@/lib/permissions";
 import { Button, ErrorNote } from "@/components/ui";
 import { toDisplayDate, toIsoDate } from "@/lib/dateFormat";
 import { cellClassRulesFor, isoToNumber, trackerRowClass } from "@/lib/trackerHighlights";
@@ -32,7 +32,7 @@ const money = (n: number) =>
 const lightTheme = themeQuartz;
 const darkTheme = themeQuartz.withPart(colorSchemeDark);
 
-type Row = Record<string, unknown> & { __id: number; __hasVendor: boolean };
+type Row = Record<string, unknown> & { __id: number; __hasVendorData: boolean };
 
 /** The Excel status-bar answer: what is this set of rows worth? */
 type Totals = { count: number; qty: number; buyer: number; vendor: number; diff: number };
@@ -81,21 +81,37 @@ export function TrackerGrid({
   const [dirtyCount, setDirtyCount] = useState(0);
   const changesRef = useRef<Map<number, Record<string, unknown>>>(new Map());
 
+  const vendorKeys = useMemo(
+    () => columns.filter((c) => c.source === "vendor").map((c) => c.key),
+    [columns],
+  );
+
   const rowData: Row[] = useMemo(
     // eslint-disable-next-line react-hooks/exhaustive-deps -- dataEpoch is the cancel signal
-    () => rows.map((r) => ({ __id: r.id, __hasVendor: r.has_vendor, ...r.data })),
-    [rows, dataEpoch],
+    () =>
+      rows.map((r) => ({
+        __id: r.id,
+        // Whether the factory side has any values, NOT r.has_vendor. That flag
+        // records "a vendor sheet was reconciled in", which stays false when
+        // the same details arrive by paste - so a row could show a factory and
+        // still be marked as awaiting one.
+        __hasVendorData: vendorKeys.some(
+          (k) => r.data[k] !== undefined && r.data[k] !== null && r.data[k] !== "",
+        ),
+        ...r.data,
+      })),
+    [rows, dataEpoch, vendorKeys],
   );
 
   const columnDefs: ColDef[] = useMemo(
     () =>
       columns.map((c) => {
-        const canEditThis = canUseExcelView(role) && canEditField(role, c);
+        const canEditThis = canUseExcelView(role) && c.editable;
         // While editing, a column this role cannot write is greyed out and
         // says why on hover - otherwise the only way to find out is to
         // double-click it and watch nothing happen.
         const locked = editing && !canEditThis;
-        const reason = lockReason(role, c);
+        const reason = lockReason(c);
         return {
         field: c.key,
         headerName: c.label,
@@ -290,6 +306,16 @@ export function TrackerGrid({
             ? "Double-click a cell to edit, or select it and press Delete to clear. Blue = buyer, green = vendor, grey = derived. Hatched columns are read-only for your role — hover one to see why."
             : "Read-only view. " + (canEdit ? "Click Edit to change values." : "")}
         </p>
+        {highlight && (
+          <p className="text-xs text-slate-400">
+            <span className="mr-1 inline-block h-2.5 w-1 translate-y-px bg-rose-500 align-middle" />
+            needs attention
+            <span className="ml-3 mr-1 inline-block h-2.5 w-1 translate-y-px bg-amber-500 align-middle" />
+            overdue or off-quantity
+            <span className="ml-3 mr-1 inline-block h-2.5 w-1 translate-y-px bg-slate-400 align-middle" />
+            awaiting the factory side
+          </p>
+        )}
         <div className="ml-auto flex items-center gap-2">
           <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
             <input
@@ -345,10 +371,13 @@ export function TrackerGrid({
            rather than resting on red-vs-amber alone. */
         .tg-bad{background:#fef2f2;box-shadow:inset 3px 0 0 #dc2626}
         .tg-warn{background:#fffbeb;box-shadow:inset 3px 0 0 #d97706}
-        .tg-row-novendor{opacity:.62;font-style:italic}
+        /* Awaiting the factory side. A left edge marker, not dimming: greyed
+           text reads as "you cannot touch this", and these rows are editable. */
+        .tg-row-novendor .ag-cell:first-child{box-shadow:inset 3px 0 0 #94a3b8}
         .dark .tg-head-buyer{background:#172554}
         .dark .tg-head-vendor{background:#052e2b}
         .dark .tg-head-derived{background:#0f172a;font-style:italic}
+        .dark .tg-row-novendor .ag-cell:first-child{box-shadow:inset 3px 0 0 #475569}
         .dark .tg-bad{background:#450a0a;box-shadow:inset 3px 0 0 #f87171}
         .dark .tg-warn{background:#422006;box-shadow:inset 3px 0 0 #fbbf24}
         .dark .tg-locked{

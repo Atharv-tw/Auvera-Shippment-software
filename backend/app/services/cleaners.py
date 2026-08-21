@@ -19,11 +19,29 @@ _DATE_FORMATS = [
     "%d/%m/%Y",
     "%d/%m/%y",
     "%Y-%m-%d",
+    # dd-mm-yyyy is what the UI *displays*, so it is what comes back when
+    # someone copies a column out of the app (or out of the tracker) and pastes
+    # it in again. It was missing, so every such paste dropped its dates in
+    # silence - no error, just an empty cell.
+    "%d-%m-%Y",
+    "%d-%m-%y",
+    # Excel and CSV exports carry a time component
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%dT%H:%M:%S",
+    "%d/%m/%Y %H:%M:%S",
     "%d.%m.%Y",
     "%d.%m.%y",
     "%d %b %Y",
     "%d %B %Y",
+    "%b %d, %Y",      # May 11, 2026
+    "%d-%b-%Y %H:%M:%S",
 ]
+
+# Excel keeps dates as a day count from 1899-12-30. A cell formatted as a number
+# pastes as that count, which is meaningless as text but unambiguous as a date.
+# Bounded to a plausible window so an ordinary quantity is never read as a date.
+_EXCEL_EPOCH = date(1899, 12, 30)
+_EXCEL_SERIAL_RANGE = (20000, 60000)  # roughly 1954 - 2064
 
 
 def clean_text(value) -> str | None:
@@ -92,4 +110,18 @@ def clean_date(value) -> date | None:
                 return _reject_excel_zero_date(datetime.strptime(s, fmt).date())
             except ValueError:
                 continue
+        # a bare number in a date column: Excel's day count
+        if s.isdigit():
+            return _from_excel_serial(int(s))
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return _from_excel_serial(int(value))
     return None
+
+
+def _from_excel_serial(serial: int) -> date | None:
+    low, high = _EXCEL_SERIAL_RANGE
+    if not low <= serial <= high:
+        return None
+    from datetime import timedelta
+
+    return _reject_excel_zero_date(_EXCEL_EPOCH + timedelta(days=serial))
