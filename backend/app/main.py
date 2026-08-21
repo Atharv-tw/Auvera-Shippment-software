@@ -33,9 +33,32 @@ def health():
     return {"status": "ok"}
 
 
-from app.routers import auth, customers, orders, tracker  # noqa: E402
+from app.routers import (  # noqa: E402
+    auth,
+    customers,
+    orders,
+    paste,
+    pos,
+    reports,
+    seasons,
+    tracker,
+    vendors,
+)
 
-app.include_router(auth.router)
-app.include_router(customers.router)
-app.include_router(orders.router)
-app.include_router(tracker.router)
+# browsable DB view for admins (SQLAlchemy is the ORM, this is its GUI)
+from app.admin import mount_admin  # noqa: E402
+
+mount_admin(app)
+
+for _router in (
+    auth.router,
+    customers.router,
+    vendors.router,
+    orders.router,
+    seasons.router,
+    pos.router,
+    paste.router,
+    reports.router,
+    tracker.router,
+):
+    app.include_router(_router)
