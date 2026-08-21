@@ -55,6 +55,10 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # allow_headers covers *request* headers; response headers are hidden from
+    # JS unless named here, and this one does not accept "*". Without it the
+    # dashboard's pager reads undefined in the browser while tests pass happily.
+    expose_headers=["X-Total-Count"],
 )
 
 

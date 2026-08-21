@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, apiPaged } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Button, Card, Input, Spinner, ErrorNote } from "@/components/ui";
 import {
@@ -15,6 +15,7 @@ import {
 } from "@/lib/permissions";
 import { poLinePath } from "@/lib/routes";
 import { toDisplayDate } from "@/lib/dateFormat";
+import { useDebounced } from "@/lib/useDebounced";
 import type { Order, TrackerRow, VendorOrder } from "@/lib/types";
 
 const nf = new Intl.NumberFormat();
@@ -35,8 +36,8 @@ function StatCard({ label, value }: { label: string; value: number | string }) {
   );
 }
 
-/** Rows in the dashboard panel. The tracker page itself shows all of them. */
-const PANEL_ROWS = 12;
+/** Rows per page in the dashboard panel. The tracker page itself shows all of them. */
+const PANEL_ROWS = 15;
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -44,31 +45,55 @@ export default function DashboardPage() {
   const showTracker = !!user && canReadTrackerRows(user.role);
   const canOpenTracker = !!user && canViewTracker(user.role);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
   const orders = useQuery({ queryKey: ["orders"], queryFn: () => api<Order[]>("/api/orders") });
   const vendors = useQuery({
     queryKey: ["vendor-orders"],
     queryFn: () => api<VendorOrder[]>("/api/vendor-orders"),
   });
+
+  // One page at a time. This panel shows 7 columns of 15 rows; it used to pull
+  // the entire 56-column tracker and throw almost all of it away.
+  // Debounced because searching moved server-side: undebounced this would be one
+  // request per keystroke, where the old client-side filter cost nothing.
+  const needle = useDebounced(search.trim(), 300);
   const tracker = useQuery({
-    queryKey: ["tracker"],
-    queryFn: () => api<TrackerRow[]>("/api/tracker"),
+    queryKey: ["tracker-panel", needle, page],
+    queryFn: () => {
+      const qs = new URLSearchParams({
+        limit: String(PANEL_ROWS),
+        offset: String(page * PANEL_ROWS),
+        sort: "updated_at",
+        order: "desc",
+      });
+      if (needle) qs.set("search", needle);
+      return apiPaged<TrackerRow>(`/api/tracker?${qs}`);
+    },
+    enabled: showTracker,
+    placeholderData: (previous) => previous, // keep the table steady while paging
+  });
+
+  // Counts come from X-Total-Count on a zero-row query - cheaper than fetching
+  // every row purely to call .length on it.
+  const totalRows = useQuery({
+    queryKey: ["tracker-count"],
+    queryFn: () => apiPaged<TrackerRow>("/api/tracker?limit=0"),
+    enabled: showTracker,
+  });
+  const reconciledRows = useQuery({
+    queryKey: ["tracker-count", "reconciled"],
+    queryFn: () => apiPaged<TrackerRow>("/api/tracker?limit=0&reconciled=true"),
     enabled: showTracker,
   });
 
   if (orders.isLoading || (showTracker && tracker.isLoading)) return <Spinner />;
   const error = orders.error || (showTracker && tracker.error) || vendors.error;
 
-  // filtered here rather than through the API's `?search=`: the rows are all in
-  // hand already, and this also matches on factory, which the query does not
-  const needle = search.trim().toLowerCase();
-  const rows = tracker.data ?? [];
-  const matches = needle
-    ? rows.filter((r) =>
-        [r.buyer_po, r.style_no, r.colour, r.data.factory_name].some((v) =>
-          String(v ?? "").toLowerCase().includes(needle),
-        ),
-      )
-    : rows;
+  // Searching server-side now. It reaches factory_name and shipment_status,
+  // which the old client-side filter could only approximate over one page.
+  const matches = tracker.data?.items ?? [];
+  const total = tracker.data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PANEL_ROWS));
 
   return (
     <div className="space-y-6">
@@ -100,10 +125,10 @@ export default function DashboardPage() {
         <StatCard label="Vendor orders" value={vendors.data?.length ?? 0} />
         {showTracker && (
           <>
-            <StatCard label="Tracker rows" value={tracker.data?.length ?? 0} />
+            <StatCard label="Tracker rows" value={totalRows.data?.total ?? 0} />
             <StatCard
               label="Reconciled (both sides)"
-              value={tracker.data?.filter((r) => r.has_buyer && r.has_vendor).length ?? 0}
+              value={reconciledRows.data?.total ?? 0}
             />
           </>
         )}
@@ -118,8 +143,11 @@ export default function DashboardPage() {
               <Input
                 type="search"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search PO, style, colour, factory…"
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0); // a narrower result set may not have the page you were on
+                }}
+                placeholder="Search PO, style, colour, factory, status…"
               />
             </div>
             {canOpenTracker && (
@@ -144,7 +172,7 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {matches.slice(0, PANEL_ROWS).map((r) => (
+              {matches.map((r) => (
                 <tr key={r.id} className="border-t border-slate-100 dark:border-slate-800">
                   <td className="py-2 pr-4">
                     <Link
@@ -180,12 +208,34 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
-        {matches.length > PANEL_ROWS && (
-          <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-            Showing {PANEL_ROWS} of {matches.length} rows
-            {needle ? " that match" : ""}
-            {canOpenTracker ? " — open the tracker for the rest." : "."}
-          </p>
+        {total > 0 && (
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {page * PANEL_ROWS + 1}–{page * PANEL_ROWS + matches.length} of {nf.format(total)}
+              {needle ? " matching" : ""} rows
+            </p>
+            {pageCount > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                >
+                  Previous
+                </Button>
+                <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                  {page + 1} / {pageCount}
+                </span>
+                <Button
+                  variant="secondary"
+                  onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                  disabled={page >= pageCount - 1}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </div>
         )}
       </Card>
       )}

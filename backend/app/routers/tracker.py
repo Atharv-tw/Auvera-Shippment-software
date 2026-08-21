@@ -55,20 +55,79 @@ def export_tracker(db: Session = Depends(get_db), user: User = Depends(require_t
     )
 
 
+# Columns `search` looks in. Factory and status are here because they are what
+# people actually type; before these were real columns the query could not reach
+# them, so the dashboard filtered client-side instead and the two behaved
+# differently. Same list now serves both.
+_SEARCHABLE = (
+    TrackerRow.buyer_po,
+    TrackerRow.style_no,
+    TrackerRow.colour,
+    TrackerRow.factory_name,
+    TrackerRow.shipment_status,
+)
+
+# Sortable via ?sort=. Restricted to an allow-list rather than accepting any
+# column name, so the parameter cannot be used to probe the schema.
+_SORTABLE = {
+    "buyer_po": TrackerRow.buyer_po,
+    "style_no": TrackerRow.style_no,
+    "colour": TrackerRow.colour,
+    "factory_name": TrackerRow.factory_name,
+    "shipment_status": TrackerRow.shipment_status,
+    "etd": TrackerRow.etd,
+    "buyer_po_delivery_date": TrackerRow.buyer_po_delivery_date,
+    "updated_at": TrackerRow.updated_at,
+}
+
+
 @router.get("", response_model=list[TrackerRowOut])
 def list_tracker(
+    response: Response,
     search: str | None = None,
+    reconciled: bool | None = None,
+    sort: str | None = None,
+    order: str = "asc",
+    limit: int | None = None,
+    offset: int = 0,
     db: Session = Depends(get_db),
     user: User = Depends(require_tracker_read),
 ):
-    q = db.query(TrackerRow).order_by(TrackerRow.buyer_po, TrackerRow.style_no, TrackerRow.colour)
+    """List tracker rows.
+
+    Paging is opt-in: the tracker page wants every row in hand so AG Grid can
+    filter and sort locally, while the dashboard panel wants 15 at a time. Callers
+    that pass no ``limit`` get the full set exactly as before, so this stayed a
+    plain list response - the total for pagers rides along in ``X-Total-Count``.
+    """
+    q = db.query(TrackerRow)
+
     if search:
         like = f"%{search}%"
-        q = q.filter(or_(
-            TrackerRow.buyer_po.ilike(like),
-            TrackerRow.style_no.ilike(like),
-            TrackerRow.colour.ilike(like),
-        ))
+        q = q.filter(or_(*(col.ilike(like) for col in _SEARCHABLE)))
+
+    if reconciled is not None:
+        both = TrackerRow.has_buyer.is_(True) & TrackerRow.has_vendor.is_(True)
+        q = q.filter(both if reconciled else ~both)
+
+    total = q.count()
+    response.headers["X-Total-Count"] = str(total)
+
+    if sort:
+        column = _SORTABLE.get(sort)
+        if column is None:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"Cannot sort by {sort!r}. Sortable: {', '.join(sorted(_SORTABLE))}",
+            )
+        q = q.order_by(column.desc() if order.lower() == "desc" else column.asc())
+    else:
+        q = q.order_by(TrackerRow.buyer_po, TrackerRow.style_no, TrackerRow.colour)
+
+    if offset:
+        q = q.offset(offset)
+    if limit is not None:
+        q = q.limit(limit)
     return q.all()
 
 
