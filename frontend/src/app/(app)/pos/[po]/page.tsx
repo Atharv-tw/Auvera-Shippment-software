@@ -13,18 +13,6 @@ import type { PoDetail, PoSchema, Season } from "@/lib/types";
 
 const nf = new Intl.NumberFormat();
 
-const HEADER_LABELS: [string, string][] = [
-  ["supplier", "Supplier"],
-  ["code", "Code"],
-  ["country_of_payment", "Country of Payment"],
-  ["payment_terms", "Payment Terms"],
-  ["currency", "Currency"],
-  ["terms_of_delivery", "Terms of Delivery"],
-  ["factory_town", "Factory Town"],
-  ["port_of_loading", "Port of Loading"],
-  ["source_filename", "Source file"],
-];
-
 export default function PurchaseOrderPage({ params }: { params: Promise<{ po: string }> }) {
   const { po } = use(params);
   const buyerPo = decodeURIComponent(po);
@@ -84,31 +72,6 @@ export default function PurchaseOrderPage({ params }: { params: Promise<{ po: st
             onSaved={refresh}
           />
         </div>
-
-        {d.headers.length > 0 && (
-          <div className="mt-4 space-y-3">
-            {d.headers.map((h, i) => (
-              <div key={i}>
-                <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  {h.side === "buyer" ? "From the buyer sheet" : "From the vendor sheet"}
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                  {HEADER_LABELS.map(([key, label]) => (
-                    <div
-                      key={key}
-                      className="rounded-md border border-slate-100 p-2 dark:border-slate-800"
-                    >
-                      <div className="text-[11px] text-slate-400">{label}</div>
-                      <div className="mt-0.5 truncate text-sm text-slate-800 dark:text-slate-200">
-                        {h[key] || "—"}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </Card>
 
       {user && canPaste(user.role) && (
