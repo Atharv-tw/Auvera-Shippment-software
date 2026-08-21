@@ -14,7 +14,7 @@ import {
 import { api, ApiError } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import type { Role, TrackerColumn, TrackerRow } from "@/lib/types";
-import { canEditSource, canUseExcelView } from "@/lib/permissions";
+import { canEditField, canUseExcelView } from "@/lib/permissions";
 import { Button, ErrorNote } from "@/components/ui";
 import { toDisplayDate, toIsoDate } from "@/lib/dateFormat";
 
@@ -59,7 +59,7 @@ export function TrackerGrid({
       columns.map((c) => ({
         field: c.key,
         headerName: c.label,
-        editable: editing && canUseExcelView(role) && canEditSource(role, c.source),
+        editable: editing && canUseExcelView(role) && canEditField(role, c),
         minWidth: 130,
         headerClass:
           c.source === "buyer"
