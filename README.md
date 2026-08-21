@@ -1,23 +1,54 @@
 # Order & Shipment Tracker (Shipping_software_Z)
 
-Ingests **Roman Originals** order paperwork and maintains a central **Shipment Tracker**.
+Ingests **Roman Originals** order paperwork, maintains a central **Shipment Tracker**, and reports
+on it by season, customer and vendor.
 
-- **Customer Order / Order Confirmation** sheets → buyer-side data (order qty, buyer price, style, colour, description).
-- **Vendor Order** sheets → factory-side data (factory name, factory price, vendor terms). One vendor
-  workbook may stack several factory blocks.
+- **Customer Order / Order Confirmation** sheets → buyer-side data (order qty, buyer price, style,
+  colour, description, size ratio, garment spec).
+- **Vendor Order** sheets → factory-side data (factory name, factory price, vendor terms, that
+  factory's payment terms). One vendor workbook may stack several factory blocks.
 - Uploads are reconciled into **tracker rows** keyed by *Buyer PO# + Style No. (+TopUp) + Colour*.
   Operational columns (ETD, BL, container, booking…) are filled in-app and are never overwritten by
   a re-import.
+- Whatever a sheet carries is stored, whether the tracker has a column for it or not — the size
+  ratio (UK size / alpha size / range), the garment spec, and a raw capture of every cell. The
+  tracker stays the shipping team's fixed 56-column view; the reporting runs off the fuller store.
+
+## Two views of the same data
+- **Purchase Orders** — a PO (`D579`) the way the business talks about it: all its style/colour
+  lines together, its season, its buyer and factory terms, its size ratios. Grouped into *Buyer*,
+  *Vendor*, *Product* and *Shipping* details.
+- **Shipment Tracker** — the shipping team's flat 56-column sheet, one row per line, with the
+  spreadsheet-style Excel view and `.xlsx` export in the original layout.
 
 ## Features
-- Multi-file drag & drop upload (customer vs vendor auto-detected).
-- Dashboard: orders, vendor orders, tracker summary.
-- Shipment Tracker: editable AG-Grid **Excel view** + per-row **Field view**; `.xlsx` export in the
-  original tracker layout.
-- Manual tracker-row entry.
-- Four roles: **admin** (everything), **ceo** (edits order details, read-only tracker, sees the
-  audit trail), **shipping_manager** (edits operational tracker data), **merchant** (uploads +
-  views orders, no tracker). Every field change is recorded in a per-field audit trail.
+- Multi-file drag & drop upload. Buyer vs vendor is decided by the sheet's **layout**, not its
+  filename, and the detection is shown so it can be corrected.
+- **Seasons**: every PO belongs to one. On upload we suggest it from the PO's delivery date
+  (March–August = Spring/Summer, otherwise Autumn/Winter) and the merchant confirms.
+- **Paste PO details**: the shipping team pastes a booking or invoice table straight out of an
+  e-mail; headings are fuzzy-matched to tracker columns and previewed before anything is written.
+  Works pinned to one PO or across many.
+- **Customer and Vendor masters**, both self-populating from uploads.
+- **Reports** by season / customer / vendor with charts, margins, shipping delays and `.xlsx` export.
+- Manual tracker-row entry, and a browsable database view at `/admin` for admins.
+
+## Roles
+
+Everyone who can edit, edits everything — *except* the price columns, which are the CEO's and
+admin's alone. A sheet upload still writes prices for whoever uploads it: that is the sheet's own
+figure, not a hand edit.
+
+| | Tracker | Purchase Orders | Edit prices | Upload | Paste | Seasons | Reports |
+|---|---|---|---|---|---|---|---|
+| **admin** | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **ceo** | ✓ | ✓ | ✓ | ✓ | | ✓ | ✓ |
+| **shipping_manager** | ✓ | ✓ | | | ✓ | | |
+| **merchant** | | ✓ | | ✓ | | ✓ | |
+
+A row's Buyer PO / Style / Colour is CEO+admin only too — changing it re-keys the row and would
+break re-import matching. Every field change is recorded in a per-field audit trail, whether it
+arrives by upload, by hand or by paste.
 
 ## Run with Docker (recommended)
 
@@ -63,3 +94,6 @@ Reset just the order / vendor / tracker data (keeps user logins & roles):
 cd backend
 uv run python -m app.reset_data          # prompts first; add --yes to skip
 ```
+
+There are no migrations yet — the schema is created by `create_all` on startup, so after a change
+to the models the quickest path locally is to delete `backend/shipping_z.db` and re-seed.
