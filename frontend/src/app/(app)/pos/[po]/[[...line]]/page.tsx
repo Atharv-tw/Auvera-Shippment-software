@@ -52,12 +52,18 @@ export default function PurchaseOrderPage({
   // All three live here, not in PoLineCard: the card is keyed on
   // tracker_row_id, so every line-tab switch remounts it and anything kept
   // inside would be lost. Persisted, so it also survives a reload.
-  const [quickViewChips, setQuickViewChips] = usePersistentState<Chip[]>("po-quick-view", []);
+  // Keyed per user, like the tracker's saved views: two people on one browser
+  // profile should not inherit each other's layout.
+  const prefKey = (name: string) => `po-${name}:${user?.id ?? "anon"}`;
+  const [quickViewChips, setQuickViewChips] = usePersistentState<Chip[]>(
+    prefKey("quick-view"),
+    [],
+  );
   const [openSections, setOpenSections] = usePersistentState<Record<string, boolean>>(
-    "po-open-sections",
+    prefKey("open-sections"),
     {},
   );
-  const [hideEmpty, setHideEmpty] = usePersistentState("po-hide-empty", false);
+  const [hideEmpty, setHideEmpty] = usePersistentState(prefKey("hide-empty"), false);
 
   const poVocabulary = useMemo(
     () => vocabularyFromFields(schema.data?.fields ?? []),
