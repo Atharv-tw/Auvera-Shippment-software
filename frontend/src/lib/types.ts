@@ -84,6 +84,8 @@ export interface TrackerColumn {
   label: string;
   type: "text" | "number" | "date";
   source: "buyer" | "vendor" | "const" | "calc" | "operational";
+  /** May the signed-in user write this column? Decided by the backend. */
+  editable: boolean;
   /** Money column - CEO/admin only. */
   is_price: boolean;
   /** PO#/Style/Colour - editing re-keys the row, so CEO/admin only. */
@@ -189,6 +191,8 @@ export interface PoFieldSpec {
   group: PoGroup;
   /** `tracker` writes to the tracker row, `order_line` to the order sheet record. */
   origin: "tracker" | "order_line";
+  /** May the signed-in user write this field? Decided by the backend. */
+  editable: boolean;
   is_price: boolean;
   is_identity: boolean;
   is_derived: boolean;
@@ -219,7 +223,6 @@ export interface PoLine {
   line: Record<string, unknown>;
   sizes: Record<string, number>;
   size_header: SizeSpec[];
-  editable_keys: string[];
 }
 
 export interface PoSummary {
