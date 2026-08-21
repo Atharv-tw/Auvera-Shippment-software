@@ -128,3 +128,79 @@ def test_audit_trail_records_upload_and_edit(client):
 
     # merchant cannot read the audit trail
     assert client.get(f"/api/tracker/{rid}/audit", headers=_auth(merchant)).status_code == 403
+
+
+# --- "who may edit this field?" is answered once, by the API --------------------
+
+def _editable_columns(client, token):
+    cols = client.get("/api/tracker/columns", headers=_auth(token)).json()
+    return {c["key"] for c in cols if c["editable"]}
+
+
+def test_columns_carry_the_edit_answer(client):
+    """The column list tells the caller which columns it may write, so the UI
+    reads the answer instead of re-deriving the rule."""
+    admin, ceo, shipping, _, _ = _bootstrap(client)
+
+    ceo_keys = _editable_columns(client, ceo)
+    shipping_keys = _editable_columns(client, shipping)
+
+    assert {"buyer_net_price", "buyer_po", "container_no"} <= ceo_keys
+    assert "buyer_net_price" not in shipping_keys  # money is CEO/admin
+    assert "buyer_po" not in shipping_keys  # identity re-keys the row
+    assert "container_no" in shipping_keys  # everything else is theirs
+    # derived columns are nobody's to type, admin included
+    assert "price_difference" not in _editable_columns(client, admin)
+
+
+def test_advertised_edit_rights_match_what_the_write_gate_accepts(client):
+    """The guard against the two halves drifting apart.
+
+    Every column, both editing roles: what ``/columns`` says about editing has
+    to be what ``PATCH`` actually does. If they ever disagree, the UI either
+    offers an edit that will 403 on save, or hides one it was allowed to make.
+    """
+    _, ceo, shipping, _, rid = _bootstrap(client)
+    for token in (ceo, shipping):
+        for col in client.get("/api/tracker/columns", headers=_auth(token)).json():
+            # None means "clear this cell" and is valid for every column type,
+            # so the permission gate is the only thing under test here
+            r = client.patch(f"/api/tracker/{rid}", json={"fields": {col["key"]: None}},
+                             headers=_auth(token))
+            assert r.status_code in (200, 403), r.text
+            assert (r.status_code != 403) is col["editable"], (
+                f"{col['key']}: editable={col['editable']} but PATCH said {r.status_code}"
+            )
+
+
+def test_po_schema_carries_the_edit_answer_per_origin(client):
+    """A PO field is stored either on the tracker row or on the order line, and
+    the two are gated separately - so each is answered against its own origin."""
+    _, _, _, merchant, _ = _bootstrap(client)
+    schema = client.get("/api/pos/schema", headers=_auth(merchant)).json()
+    by_key = {f["key"]: f for f in schema["fields"]}
+
+    assert by_key["remarks"]["editable"] is True  # tracker, operational
+    assert by_key["composition"]["editable"] is True  # order-sheet detail
+    assert by_key["buyer_net_price"]["editable"] is False  # money
+    assert by_key["buyer_po"]["editable"] is False  # identity
+    assert by_key["price_difference"]["editable"] is False  # derived
+
+
+def test_po_schema_matches_what_the_po_write_gate_accepts(client):
+    """The same no-drift check on the per-PO view, which a merchant reaches
+    without any tracker access at all."""
+    _, _, _, merchant, _ = _bootstrap(client)
+    m = _auth(merchant)
+    buyer_po = client.get("/api/pos", headers=m).json()[0]["buyer_po"]
+    row_id = client.get(f"/api/pos/{buyer_po}", headers=m).json()["lines"][0]["tracker_row_id"]
+
+    for field in client.get("/api/pos/schema", headers=m).json()["fields"]:
+        side = "tracker_fields" if field["origin"] == "tracker" else "line_fields"
+        r = client.patch(f"/api/pos/{buyer_po}/rows/{row_id}",
+                         json={side: {field["key"]: None}}, headers=m)
+        assert r.status_code in (200, 403), r.text
+        assert (r.status_code != 403) is field["editable"], (
+            f"{field['key']} ({field['origin']}): editable={field['editable']} "
+            f"but PATCH said {r.status_code}"
+        )
