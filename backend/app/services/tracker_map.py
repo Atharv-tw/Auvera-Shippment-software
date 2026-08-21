@@ -108,8 +108,25 @@ PRICE_KEYS: frozenset[str] = frozenset({
 # silently orphan the row from future re-imports - CEO/admin only.
 IDENTITY_KEYS: frozenset[str] = frozenset({"buyer_po", "style_no", "colour"})
 
-# Derived, never hand-edited by anyone.
-DERIVED_KEYS: frozenset[str] = frozenset({"price_difference"})
+# Derived, never hand-edited by anyone. Each is a formula over other columns,
+# and each goes **empty** when any of its inputs is missing - the sheet cannot
+# do that, so Excel leaves artifacts like -46221 where a blank date was treated
+# as day zero.
+DERIVED_FORMULAS: dict[str, tuple[str, str]] = {
+    # key: (minuend, subtrahend) - always "later minus earlier"
+    "price_difference": ("buyer_net_price", "factory_price"),
+    "short_extra_qty": ("ship_qty", "order_qty"),
+    "delay_shipment": ("etd", "factory_delivery_date"),
+    "docs_delay_days": ("docs_received", "docs_due_date"),
+}
+
+DERIVED_KEYS: frozenset[str] = frozenset(DERIVED_FORMULAS)
+
+
+def derived_from_labels(key: str) -> list[str]:
+    """The columns a derived value is calculated from, by their sheet labels."""
+    pair = DERIVED_FORMULAS.get(key)
+    return [LABEL_BY_KEY.get(k, k).strip() for k in pair] if pair else []
 
 
 def field_class(key: str) -> str:
@@ -201,9 +218,24 @@ def vendor_fields(header: dict, line: dict) -> dict[str, Any]:
 
 
 def compute_derived(fields: dict[str, Any]) -> dict[str, Any]:
-    """Fill computed columns (Price Difference) from whatever is present."""
-    buyer = fields.get("buyer_net_price")
-    factory = fields.get("factory_price")
-    if buyer is not None and factory is not None:
-        fields["price_difference"] = round(buyer - factory, 4)
+    """Recalculate every derived column from the values present in ``fields``.
+
+    Each is a subtraction. Money and quantities subtract as numbers; the two
+    delay columns subtract dates and yield whole days. **Any derived value whose
+    inputs are not both present is set to None**, not left at its previous
+    figure - a stale delay is worse than a blank one.
+
+    Pass the row's full merged values, not a partial update: a vendor-side
+    import alone has no buyer price to subtract from.
+    """
+    from app.services import cleaners
+
+    for key, (left_key, right_key) in DERIVED_FORMULAS.items():
+        left, right = fields.get(left_key), fields.get(right_key)
+        if TYPE_BY_KEY[key] == "number" and TYPE_BY_KEY[left_key] == "date":
+            a, b = cleaners.clean_date(left), cleaners.clean_date(right)
+            fields[key] = None if a is None or b is None else (a - b).days
+        else:
+            a, b = cleaners.clean_number(left), cleaners.clean_number(right)
+            fields[key] = None if a is None or b is None else round(a - b, 4)
     return fields

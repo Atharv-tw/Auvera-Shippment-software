@@ -106,6 +106,24 @@ class TrackerColumnOut(BaseModel):
     is_price: bool = False
     is_identity: bool = False
     is_derived: bool = False
+    # for a derived column, the labels it is calculated from - so the UI can say
+    # which fields to change instead of just refusing the edit
+    derived_from: list[str] = []
+    # how people actually write this column ("po no", "supplier", "sailing
+    # date"). Already maintained for paste-matching; the UI's field search uses
+    # the same vocabulary so both understand the same words.
+    aliases: list[str] = []
+
+
+class TrackerExportRequest(BaseModel):
+    """Export what is on screen rather than the whole table.
+
+    ``row_ids`` is the filtered set in the order the grid shows them; ``keys``
+    the visible columns. Either omitted means "all of them", so the plain
+    Download button still produces the full 56-column sheet.
+    """
+    row_ids: list[int] | None = None
+    keys: list[str] | None = None
 
 
 class TrackerRowOut(BaseModel):
@@ -261,6 +279,7 @@ class PoFieldSpec(BaseModel):
     is_price: bool = False
     is_identity: bool = False
     is_derived: bool = False
+    derived_from: list[str] = []
 
 
 class PoSchemaOut(BaseModel):

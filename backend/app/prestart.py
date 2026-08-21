@@ -1,4 +1,4 @@
-"""Container pre-start: wait for the database, then seed.
+"""Container pre-start: wait for the database, migrate, then seed.
 
 Kept in Python (not a shell script) so it runs identically on any host and
 sidesteps CRLF / exec-bit issues when building images from Windows.
@@ -33,13 +33,19 @@ def wait_for_db(attempts: int = 60, delay: float = 2.0) -> None:
 def main() -> None:
     wait_for_db()
 
-    # A model that gained a column needs the table rebuilt - create_all cannot
-    # alter one. Set REBUILD_SCHEMA=true for a single deploy to do that, then
-    # unset it. Destructive: it drops every table, users included.
+    # Break-glass only. Schema changes normally ship as migrations; this drops
+    # every table, users included. Set REBUILD_SCHEMA=true for a single deploy,
+    # then unset it.
     from app.rebuild_schema import rebuild_if_env_set
 
     if rebuild_if_env_set():
         return  # rebuild seeds as its last step
+
+    from app.migrate import upgrade_head
+
+    print("Applying migrations…")
+    upgrade_head()
+    print("Migrations up to date.")
 
     from app import seed
 

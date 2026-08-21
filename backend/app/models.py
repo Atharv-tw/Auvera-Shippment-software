@@ -152,8 +152,130 @@ class TrackerRow(Base, TimestampMixin):
     style_no: Mapped[str | None] = mapped_column(String(64), index=True)
     colour: Mapped[str | None] = mapped_column(String(64))
     article: Mapped[str | None] = mapped_column(String(64))
-    # full set of tracker columns keyed by tracker_map key
-    data: Mapped[dict] = mapped_column(JSON, default=dict)
+
+    # --- the 56 tracker columns -------------------------------------------------
+    # Real columns, not a JSON blob: the tracker is listed, searched, sorted,
+    # paginated and reported on by these, and all of that needs SQL. Declared
+    # explicitly rather than generated from TRACKER_COLUMNS - the parity test in
+    # tests/test_tracker_columns.py is the guard, and it fails loudly where
+    # metaprogramming would fail silently. buyer_po / style_no / colour are
+    # tracker columns too; they are declared above as the row identity.
+    # A few operational columns are Text rather than String(255): they hold
+    # accumulated lists or free notes (BL/AWB/FCR No. already carries three
+    # numbers and a carrier in one cell). SQLite ignores column lengths, so an
+    # overflow here would pass every dev test and fail only on Postgres.
+    # A  Company code
+    company_code: Mapped[str | None] = mapped_column(String(255))
+    # B  Customer Name
+    customer_name: Mapped[str | None] = mapped_column(String(255))
+    # C  Factory's Name
+    factory_name: Mapped[str | None] = mapped_column(String(255), index=True)
+    # D  Division
+    division: Mapped[str | None] = mapped_column(String(255))
+    # H  Buyer PO Delivery dtd
+    buyer_po_delivery_date: Mapped[date | None] = mapped_column(Date, index=True)
+    # I  Factory Delivery dtd
+    factory_delivery_date: Mapped[date | None] = mapped_column(Date)
+    # J  Mode
+    mode: Mapped[str | None] = mapped_column(String(255))
+    # K  FOB or C&F
+    fob_or_cf: Mapped[str | None] = mapped_column(String(255))
+    # L  Order qty
+    order_qty: Mapped[float | None] = mapped_column(Float)
+    # M  Ship Qty ( pcs )
+    ship_qty: Mapped[float | None] = mapped_column(Float)
+    # N  Pkgs / Ctns
+    pkgs_ctns: Mapped[float | None] = mapped_column(Float)
+    # O  Buyer Currency
+    buyer_currency: Mapped[str | None] = mapped_column(String(255))
+    # P  Buyer Net Price
+    buyer_net_price: Mapped[float | None] = mapped_column(Float)
+    # Q  Buyer Total Value
+    buyer_total_value: Mapped[float | None] = mapped_column(Float)
+    # R  Vendor Terms
+    vendor_terms: Mapped[str | None] = mapped_column(String(255))
+    # S  Factory Unit Price
+    factory_price: Mapped[float | None] = mapped_column(Float)
+    # T  Vendor Total Value
+    vendor_total_value: Mapped[float | None] = mapped_column(Float)
+    # U  Price Difference
+    price_difference: Mapped[float | None] = mapped_column(Float)
+    # V  Factory Inv No.
+    factory_inv_no: Mapped[str | None] = mapped_column(String(255))
+    # W  Factory Inv/ Date
+    factory_inv_date: Mapped[date | None] = mapped_column(Date)
+    # X  Auvera Inv No.
+    auvera_inv_no: Mapped[str | None] = mapped_column(String(255))
+    # Y  Actual Vessel Sailing date (ETD)
+    etd: Mapped[date | None] = mapped_column(Date, index=True)
+    # Z  Shipment ETA (Confirm by forwarder)
+    eta: Mapped[date | None] = mapped_column(Date)
+    # AA  BL/AWB/FCR No.
+    bl_no: Mapped[str | None] = mapped_column(Text)
+    # AB  BL/AWB/FCR Date
+    bl_date: Mapped[date | None] = mapped_column(Date)
+    # AC  Post shipping / Docs received from  vendor
+    docs_received: Mapped[date | None] = mapped_column(Date)
+    # AD  Docs Due Date
+    docs_due_date: Mapped[date | None] = mapped_column(Date)
+    # AE  Day of Delayed Received docs
+    docs_delay_days: Mapped[float | None] = mapped_column(Float)
+    # AF  FORWARDER
+    forwarder: Mapped[str | None] = mapped_column(String(255))
+    # AG  Item
+    item: Mapped[str | None] = mapped_column(String(255))
+    # AH  Short / Extra Ship Qnty (+/-)
+    short_extra_qty: Mapped[float | None] = mapped_column(Float)
+    # AI  Factory Pyament Due Date
+    factory_payment_due_date: Mapped[date | None] = mapped_column(Date)
+    # AJ  Shipment Status
+    shipment_status: Mapped[str | None] = mapped_column(String(255), index=True)
+    # AK  Delay Shipment
+    delay_shipment: Mapped[float | None] = mapped_column(Float)
+    # AL  Buyer Payment Due Date
+    buyer_payment_due_date: Mapped[date | None] = mapped_column(Date)
+    # AM  Remarks
+    remarks: Mapped[str | None] = mapped_column(Text)
+    # AN  Factory Payment Terms (LC/TT/DA/DP) Status
+    factory_payment_terms_status: Mapped[str | None] = mapped_column(String(255))
+    # AO  Buyer Payment Terms (LC/TT/DA/DP) Status
+    buyer_payment_terms_status: Mapped[str | None] = mapped_column(String(255))
+    # AP  Final inspection date
+    final_inspection_date: Mapped[date | None] = mapped_column(Date)
+    # AQ  POD
+    pod: Mapped[str | None] = mapped_column(String(255))
+    # AR  Pre-shipping docs sending to buyer for approval
+    preship_docs_sent: Mapped[date | None] = mapped_column(Date)
+    # AS  Buyer Approved
+    buyer_approved: Mapped[date | None] = mapped_column(Date)
+    # AT  Booking No.
+    booking_no: Mapped[str | None] = mapped_column(String(255))
+    # AU  Booking date
+    booking_date: Mapped[date | None] = mapped_column(Date)
+    # AV  Approval, Carting, DO date
+    approval_carting_do_date: Mapped[date | None] = mapped_column(Date)
+    # AW  Actual H/o date/FCR date
+    actual_ho_date: Mapped[date | None] = mapped_column(Date)
+    # AX  Container No.
+    container_no: Mapped[str | None] = mapped_column(Text)
+    # AY  Container Size
+    container_size: Mapped[str | None] = mapped_column(String(255))
+    # AZ  LCL/FCL
+    lcl_fcl: Mapped[str | None] = mapped_column(String(255))
+    # BA  Vessel
+    vessel: Mapped[str | None] = mapped_column(String(255))
+    # BB  Voyage
+    voyage: Mapped[str | None] = mapped_column(String(255))
+    # BC  Post shipping Docs share to the customer via mail
+    docs_shared_customer: Mapped[str | None] = mapped_column(Text)
+    # BD  date
+    docs_shared_date: Mapped[date | None] = mapped_column(Date)
+
+    # Anything the tracker gains that is not modelled above, exactly like
+    # _LineColumns.raw. Normally empty - it exists so a 57th tracker column can
+    # ship as a TRACKER_COLUMNS entry alone, with no migration, and be promoted
+    # to a real column later.
+    raw: Mapped[dict] = mapped_column(JSON, default=dict)
     # tracker keys a user has manually edited — never clobbered on re-import
     edited_keys: Mapped[list] = mapped_column(JSON, default=list)
     has_buyer: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -161,6 +283,56 @@ class TrackerRow(Base, TimestampMixin):
     order_line_id: Mapped[int | None] = mapped_column(ForeignKey("order_lines.id"))
     vendor_order_line_id: Mapped[int | None] = mapped_column(ForeignKey("vendor_order_lines.id"))
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+
+    # --- the wire shape ---------------------------------------------------------
+    # The API has always exposed the tracker as a single ``data`` dict and the
+    # whole frontend reads it that way, so it stays - assembled from the columns
+    # rather than stored. Two properties of the old blob are preserved
+    # deliberately, because changing either would be a visible regression:
+    #   * it is **sparse** - only keys that actually have a value appear;
+    #   * **dates are ISO strings**, which is what the sheets, the grid and
+    #     seasons._as_date all already expect.
+    # (Ints becoming floats is not a regression: JSON numbers are IEEE doubles,
+    # so 300 and 300.0 parse to the same JavaScript value.)
+
+    @property
+    def data(self) -> dict:
+        from app.services import tracker_map as tm
+
+        out: dict = {}
+        for key in tm.TRACKER_KEYS:
+            value = getattr(self, key, None)
+            if value is None:
+                continue
+            out[key] = value.isoformat() if isinstance(value, date) else value
+        # unmodelled keys last; they never collide with a real column
+        out.update(self.raw or {})
+        return out
+
+    def set_tracker_values(self, values: dict) -> None:
+        """Write tracker keys onto the row: modelled -> column, rest -> ``raw``.
+
+        The single write path for the 56 columns. Values are coerced to the
+        column's type, so callers may pass the sheets' strings or the API's JSON
+        without each having to know which is which.
+        """
+        from app.services import cleaners
+        from app.services import tracker_map as tm
+
+        leftovers = dict(self.raw or {})
+        for key, value in values.items():
+            if key not in tm.TRACKER_KEYS:
+                leftovers[key] = value
+                continue
+            kind = tm.TYPE_BY_KEY.get(key)
+            if kind == "date":
+                value = cleaners.clean_date(value)
+            elif kind == "number":
+                value = cleaners.clean_number(value)
+            else:
+                value = cleaners.clean_text(value)
+            setattr(self, key, value)
+        self.raw = leftovers
 
 
 # --- field-level change trail --------------------------------------------------

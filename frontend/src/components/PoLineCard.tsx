@@ -8,6 +8,7 @@ import { AuditDrawer } from "@/components/AuditDrawer";
 import { Badge, Button, ErrorNote } from "@/components/ui";
 import { clsx } from "@/components/clsx";
 import { toDisplayDate, toIsoDate } from "@/lib/dateFormat";
+import { fieldFlag } from "@/lib/trackerHighlights";
 import type { PoFieldSpec, PoGroup, PoLine, Role } from "@/lib/types";
 
 /** One line of a purchase order, laid out in the four business sections.
@@ -23,6 +24,10 @@ export function PoLineCard({
   role,
   showTitle = true,
   onSaved,
+  openSections,
+  onToggleSection,
+  quickViewKeys,
+  hideEmpty,
 }: {
   buyerPo: string;
   line: PoLine;
@@ -32,18 +37,28 @@ export function PoLineCard({
   /** off when a tab strip above already names the line */
   showTitle?: boolean;
   onSaved: () => void;
+  /** Which sections are open. Owned by the page, because this card is remounted
+   * on every line-tab switch and state kept here would not survive one. */
+  openSections: Record<string, boolean>;
+  onToggleSection: (key: string, open: boolean) => void;
+  /** Field keys promoted into the Quick view block at the top. */
+  quickViewKeys: string[];
+  /** Hide fields with no value — most of the ~73 are blank on any given line. */
+  hideEmpty: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Every section collapses. Buyer and Vendor carry the order itself, so they
-  // open; Product and Shipping are detail you go looking for, so they don't.
-  const [toggled, setToggled] = useState<Record<string, boolean>>({});
-  const openByDefault = (key: PoGroup) => key === "buyer" || key === "vendor";
   const [auditField, setAuditField] = useState<PoFieldSpec | null>(null);
 
   const showAudit = canViewAudit(role);
+
+  // Buyer and Vendor carry the order itself, so they open; Product and Shipping
+  // are detail you go looking for. Once Quick view holds the fields someone
+  // actually wants, it answers first and the rest start closed.
+  const openByDefault = (key: PoGroup) =>
+    quickViewKeys.length === 0 && (key === "buyer" || key === "vendor");
 
   const byGroup = useMemo(() => {
     const map = new Map<PoGroup, PoFieldSpec[]>();
@@ -53,6 +68,13 @@ export function PoLineCard({
     }
     return map;
   }, [fields]);
+
+  const quickView = useMemo(() => {
+    const order = new Map(quickViewKeys.map((k, i) => [k, i]));
+    return fields
+      .filter((f) => order.has(f.key))
+      .sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
+  }, [fields, quickViewKeys]);
 
   const raw = (f: PoFieldSpec) =>
     f.origin === "tracker" ? line.tracker[f.key] : line.line[f.key];
@@ -98,6 +120,80 @@ export function PoLineCard({
   };
 
   const anyEditable = fields.some((f) => canEditField(role, f));
+
+  /** One field tile. Shared by the section grids and Quick view, so a field
+   * looks and behaves identically wherever it appears. */
+  const renderField = (f: PoFieldSpec) => {
+    const locked = lockReason(role, f);
+    const canEdit = editing && canEditField(role, f);
+    // the same rules the grid uses; suppressed while editing, where the tint
+    // would fight the input styling
+    const flag = editing ? null : fieldFlag(f.key, raw(f), line.tracker);
+    return (
+      <div
+        key={`${f.origin}:${f.key}`}
+        className={clsx(
+          "rounded-md border p-2",
+          flag === "bad"
+            ? "border-rose-300 bg-rose-50 dark:border-rose-500/40 dark:bg-rose-500/10"
+            : flag === "warn"
+              ? "border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10"
+              : f.is_price
+                ? // money, called out so it stays findable on a page of fifty-odd fields
+                  "border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10"
+                : "border-slate-100 dark:border-slate-800",
+        )}
+      >
+        <div className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">{f.label}</span>
+          {showAudit && (
+            <button
+              type="button"
+              title="Who changed this? View the change trail"
+              aria-label={`Change trail for ${f.label}`}
+              onClick={() => setAuditField(f)}
+              className="ml-auto text-slate-300 hover:text-blue-600 dark:text-slate-600 dark:hover:text-blue-400"
+            >
+              <Info size={13} />
+            </button>
+          )}
+          {editing && locked && (
+            <span
+              title={locked}
+              className={clsx(
+                "cursor-help text-[10px] font-medium text-amber-700 dark:text-amber-400",
+                showAudit ? "order-first ml-auto" : "ml-auto",
+              )}
+            >
+              locked
+            </span>
+          )}
+        </div>
+        {canEdit ? (
+          <input
+            className={clsx(
+              "mt-0.5 w-full rounded border px-1.5 py-1 text-sm outline-none focus:border-blue-400 dark:bg-slate-800 dark:text-slate-100",
+              f.is_price
+                ? "border-amber-300 bg-amber-50/60 dark:border-amber-500/40"
+                : "border-slate-200 dark:border-slate-700",
+            )}
+            value={value(f)}
+            onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
+          />
+        ) : (
+          <div
+            title={editing ? locked ?? undefined : undefined}
+            className={clsx(
+              "mt-0.5 text-sm text-slate-800 dark:text-slate-200",
+              editing && locked && "opacity-60",
+            )}
+          >
+            {shown(f) || "—"}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -150,25 +246,40 @@ export function PoLineCard({
       <div className="space-y-4 p-4">
         {error && <ErrorNote message={error} />}
 
+        {quickView.length > 0 && (
+          <section>
+            <h3 className="mb-2 text-[13px] font-bold uppercase tracking-wide text-blue-700 dark:text-blue-400">
+              Quick view
+            </h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {quickView.map((f) => renderField(f))}
+            </div>
+          </section>
+        )}
+
         {groups.map((g) => {
-          const groupFields = byGroup.get(g.key) ?? [];
-          if (groupFields.length === 0) return null;
-          const isOpen = toggled[g.key] ?? openByDefault(g.key);
-          // how much of the section is actually filled in — live, so it moves while editing
-          const filled = groupFields.filter((f) => value(f) !== "").length;
-          const pct = Math.round((filled / groupFields.length) * 100);
+          const all = byGroup.get(g.key) ?? [];
+          if (all.length === 0) return null;
+          // Hiding empties is the biggest density win here: most of the ~73
+          // fields are blank on a given line. Never while editing — an empty
+          // field is exactly the one you opened the page to fill in.
+          const groupFields = hideEmpty && !editing ? all.filter((f) => value(f) !== "") : all;
+          const isOpen = openSections[g.key] ?? openByDefault(g.key);
+          // the percentage always measures the whole section, not the filtered view
+          const filled = all.filter((f) => value(f) !== "").length;
+          const pct = Math.round((filled / all.length) * 100);
           return (
             <section key={g.key}>
               <button
                 type="button"
                 aria-label={`${g.label} (${isOpen ? "collapse" : "expand"})`}
                 aria-expanded={isOpen}
-                onClick={() => setToggled((t) => ({ ...t, [g.key]: !isOpen }))}
+                onClick={() => onToggleSection(g.key, !isOpen)}
                 className="mb-2 flex cursor-pointer items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-slate-900 hover:text-blue-600 dark:text-slate-100 dark:hover:text-blue-400"
               >
                 <span>{g.label}</span>
                 <span
-                  title={`${filled} of ${groupFields.length} fields filled`}
+                  title={`${filled} of ${all.length} fields filled`}
                   className={clsx(
                     "rounded-full px-1.5 py-0.5 text-[10px] font-medium tabular-nums",
                     pct === 100
@@ -188,77 +299,16 @@ export function PoLineCard({
                   {g.key === "product" && Object.keys(line.sizes).length > 0 && (
                     <SizeRatio sizes={line.sizes} spec={line.size_header} />
                   )}
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {groupFields.map((f) => {
-                      const locked = lockReason(role, f);
-                      const canEdit = editing && canEditField(role, f);
-                      return (
-                        <div
-                          key={`${f.origin}:${f.key}`}
-                          className={clsx(
-                            "rounded-md border p-2",
-                            // The money columns, called out so they are findable
-                            // at a glance on a page of fifty-odd fields.
-                            f.is_price
-                              ? "border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10"
-                              : "border-slate-100 dark:border-slate-800",
-                          )}
-                        >
-                          <div className="flex items-center gap-1">
-                            <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                              {f.label}
-                            </span>
-                            {showAudit && (
-                              <button
-                                type="button"
-                                title="Who changed this? View the change trail"
-                                aria-label={`Change trail for ${f.label}`}
-                                onClick={() => setAuditField(f)}
-                                className="ml-auto text-slate-300 hover:text-blue-600 dark:text-slate-600 dark:hover:text-blue-400"
-                              >
-                                <Info size={13} />
-                              </button>
-                            )}
-                            {editing && locked && (
-                              <span
-                                title={locked}
-                                className={clsx(
-                                  "cursor-help text-[10px] font-medium text-amber-700 dark:text-amber-400",
-                                  showAudit ? "order-first ml-auto" : "ml-auto",
-                                )}
-                              >
-                                locked
-                              </span>
-                            )}
-                          </div>
-                          {canEdit ? (
-                            <input
-                              className={clsx(
-                                "mt-0.5 w-full rounded border px-1.5 py-1 text-sm outline-none focus:border-blue-400 dark:bg-slate-800 dark:text-slate-100",
-                                f.is_price
-                                  ? "border-amber-300 bg-amber-50/60 dark:border-amber-500/40"
-                                  : "border-slate-200 dark:border-slate-700",
-                              )}
-                              value={value(f)}
-                              onChange={(e) =>
-                                setDraft((d) => ({ ...d, [f.key]: e.target.value }))
-                              }
-                            />
-                          ) : (
-                            <div
-                              title={editing ? locked ?? undefined : undefined}
-                              className={clsx(
-                                "mt-0.5 text-sm text-slate-800 dark:text-slate-200",
-                                editing && locked && "opacity-60",
-                              )}
-                            >
-                              {shown(f) || "—"}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {groupFields.length === 0 ? (
+                    <p className="text-xs italic text-slate-400">
+                      Every field here is empty. Untick &ldquo;Hide empty fields&rdquo; to fill
+                      them in.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {groupFields.map((f) => renderField(f))}
+                    </div>
+                  )}
                 </>
               )}
             </section>

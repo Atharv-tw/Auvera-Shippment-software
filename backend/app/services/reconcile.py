@@ -62,7 +62,7 @@ def _upsert_tracker(
     if row is None:
         row = TrackerRow(
             match_key=match, buyer_po=buyer_po, style_no=style_no, colour=colour,
-            data={}, edited_keys=[], created_by=user_id,
+            raw={}, edited_keys=[], created_by=user_id,
         )
         db.add(row)
         db.flush()  # obtain row.id for audit entries
@@ -85,12 +85,13 @@ def _upsert_tracker(
     # traceability
     if article and not row.article:
         row.article = article
-    # derived columns (recomputed from merged data unless user-edited)
-    if "price_difference" not in edited:
-        b, f = data.get("buyer_net_price"), data.get("factory_price")
-        if b is not None and f is not None:
-            data["price_difference"] = round(b - f, 4)
-    row.data = data
+    # Derived columns, always recomputed from the merged values. Not guarded by
+    # `edited`: they are formulas, so a hand-entered figure is not a preference
+    # to protect, it is a value that has gone stale.
+    tm.compute_derived(data)
+    edited -= set(tm.DERIVED_KEYS)
+    # one write path for the 56 columns; unmodelled keys fall through to raw
+    row.set_tracker_values(data)
     row.buyer_po = row.buyer_po or buyer_po
     row.style_no = row.style_no or style_no
     row.colour = row.colour or colour

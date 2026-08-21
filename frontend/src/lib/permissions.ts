@@ -75,7 +75,7 @@ export const canUseExcelView = (r: Role) =>
 type Gated = Pick<
   TrackerColumn | PoFieldSpec,
   "is_price" | "is_identity" | "is_derived"
->;
+> & { derived_from?: string[] };
 
 /** Whether a role may edit a given column/field, from the flags the API sends. */
 export const canEditField = (r: Role, field: Gated) => {
@@ -87,7 +87,14 @@ export const canEditField = (r: Role, field: Gated) => {
 
 /** Why a field is locked, for the tooltip on a disabled input. */
 export const lockReason = (r: Role, field: Gated): string | null => {
-  if (field.is_derived) return "Calculated from the buyer and factory prices";
+  if (field.is_derived) {
+    // name the actual inputs: four columns are derived now, and "change the
+    // price" is unhelpful advice on a shipment-delay field
+    const from = field.derived_from ?? [];
+    return from.length === 2
+      ? `Calculated: ${from[0]} minus ${from[1]}. Change those instead.`
+      : "Calculated automatically from other columns";
+  }
   if (field.is_price && !canEditPrices(r))
     return "Price fields can only be changed by the CEO or an admin";
   if (field.is_identity && !canEditIdentity(r))
