@@ -167,17 +167,13 @@ export default function PurchaseOrderPage({
                       )
                     }
                     className={clsx(
-                      "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-colors",
+                      "shrink-0 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-colors",
                       isActive
                         ? "border-blue-500 bg-blue-50 font-semibold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
                         : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-slate-200",
                     )}
                   >
-                    <span>
-                      {line.style_no ?? "—"} · {line.colour ?? "—"}
-                    </span>
-                    {line.has_buyer && <Badge color="blue">buyer</Badge>}
-                    {line.has_vendor && <Badge color="green">vendor</Badge>}
+                    {line.style_no ?? "—"} · {line.colour ?? "—"}
                   </button>
                 );
               })}
