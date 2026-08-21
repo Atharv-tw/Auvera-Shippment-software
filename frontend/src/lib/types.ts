@@ -90,6 +90,8 @@ export interface TrackerColumn {
   is_identity: boolean;
   /** Computed (price difference) - read-only for everyone. */
   is_derived: boolean;
+  /** For a derived column, the two labels it is calculated from. */
+  derived_from?: string[];
   /** How people actually write this column ("po no", "supplier", "sailing
    * date"), from the same vocabulary that drives paste-matching. */
   aliases?: string[];
@@ -190,6 +192,8 @@ export interface PoFieldSpec {
   is_price: boolean;
   is_identity: boolean;
   is_derived: boolean;
+  /** For a derived field, the two labels it is calculated from. */
+  derived_from?: string[];
 }
 
 export interface PoSchema {

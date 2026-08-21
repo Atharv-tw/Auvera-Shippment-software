@@ -68,19 +68,18 @@ def apply_tracker_fields(
         if key in fields:
             setattr(row, key, fields[key])
 
-    # price difference is always derived from the two prices
-    b, f = data.get("buyer_net_price"), data.get("factory_price")
-    try:
-        new_diff = None if b is None or f is None else round(float(b) - float(f), 4)
-    except (TypeError, ValueError):
-        new_diff = data.get("price_difference")  # leave as-is on bad input
-    if new_diff != data.get("price_difference"):
-        audit.record_change(
-            db, row_id=row.id, key="price_difference",
-            old=data.get("price_difference"), new=new_diff,
-            action=action, user_id=user.id, user_name=user.name,
-        )
-        data["price_difference"] = new_diff
+    # Derived columns follow from the values above, so they are recalculated on
+    # every edit rather than typed. Each still gets an audit entry, because "why
+    # did the delay change?" is answered by the edit that moved its inputs.
+    before = {k: data.get(k) for k in tm.DERIVED_KEYS}
+    tm.compute_derived(data)
+    for key, was in before.items():
+        if data.get(key) != was:
+            audit.record_change(
+                db, row_id=row.id, key=key, old=was, new=data.get(key),
+                action=action, user_id=user.id, user_name=user.name,
+            )
+    edited -= set(tm.DERIVED_KEYS)
 
     row.set_tracker_values(data)
     row.edited_keys = sorted(edited)

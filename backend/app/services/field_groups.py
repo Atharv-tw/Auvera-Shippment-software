@@ -90,6 +90,7 @@ def tracker_field_specs() -> list[dict]:
             "is_price": c["key"] in tm.PRICE_KEYS,
             "is_identity": c["key"] in tm.IDENTITY_KEYS,
             "is_derived": c["key"] in tm.DERIVED_KEYS,
+            "derived_from": tm.derived_from_labels(c["key"]),
         }
         for c in tm.TRACKER_COLUMNS
     ]
@@ -107,6 +108,7 @@ def line_field_specs() -> list[dict]:
             "is_price": f["key"] in LINE_PRICE_KEYS,
             "is_identity": False,
             "is_derived": False,
+            "derived_from": [],
         }
         for f in LINE_FIELDS
     ]
