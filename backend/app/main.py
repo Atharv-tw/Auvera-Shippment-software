@@ -62,6 +62,12 @@ def health():
     return {"status": "ok"}
 
 
+@app.head("/ping")
+@app.get("/ping")
+def ping():
+    return {"status": "ok"}
+
+
 @app.get("/api/health/schema")
 def schema_health():
     """Is the live database actually the shape the models expect?
