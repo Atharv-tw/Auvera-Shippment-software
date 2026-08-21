@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { canViewPos } from "@/lib/permissions";
 import { Badge, Card, Input, Select, Spinner, ErrorNote } from "@/components/ui";
+import { poLinePath } from "@/lib/routes";
 import type { PoSummary, SeasonSummary } from "@/lib/types";
 
 const nf = new Intl.NumberFormat();
@@ -94,7 +95,7 @@ export default function PurchaseOrdersPage() {
                   <tr key={p.buyer_po} className="border-t border-slate-100 dark:border-slate-800">
                     <td className="py-2.5 pr-4 font-medium">
                       <Link
-                        href={`/pos/${encodeURIComponent(p.buyer_po)}`}
+                        href={poLinePath(p.buyer_po)}
                         className="text-blue-600 hover:underline"
                       >
                         {p.buyer_po}
