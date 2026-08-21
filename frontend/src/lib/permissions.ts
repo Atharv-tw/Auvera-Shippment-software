@@ -1,10 +1,15 @@
 import type { PoFieldSpec, Role, TrackerColumn } from "./types";
 
-/** Mirror of backend app/permissions.py — keep the two in sync.
+/** Which pages and actions a role gets. Page-level only.
  *
- * The model is flat: everyone who can edit, edits everything, *except* the
- * money columns, which belong to the CEO and admin alone. The one other
- * exception is a row's PO/Style/Colour identity, which re-keys the row.
+ * Per-*field* editability is deliberately not here: the API decides it and
+ * sends `editable` on every column and field spec (see `lockReason`). The
+ * backend refuses the write either way, so there is nothing left for the UI
+ * to work out for itself.
+ *
+ * What remains below mirrors app/permissions.py, and every route it guards is
+ * enforced server-side by a dependency — a role that slips past one of these
+ * gets a 403 from the endpoint.
  */
 
 export const SELF_REGISTER_ROLES: { value: Role; label: string }[] = [
@@ -40,10 +45,8 @@ export const canViewPos = (r: Role) =>
 export const canEditTracker = (r: Role) =>
   r === "admin" || r === "ceo" || r === "shipping_manager";
 
-/** Money columns: buyer/factory price, both totals, price difference. */
-export const canEditPrices = (r: Role) => r === "admin" || r === "ceo";
-
-/** Buyer PO# / Style / Colour — changing these re-keys the row. */
+/** Buyer PO# / Style / Colour — changing these re-keys the row. Also the gate
+ * on the Manual PO Line page, which creates a row and so sets its identity. */
 export const canEditIdentity = (r: Role) => r === "admin" || r === "ceo";
 
 export const canPaste = (r: Role) => r === "admin" || r === "shipping_manager";
@@ -74,19 +77,18 @@ export const canUseExcelView = (r: Role) =>
 
 type Gated = Pick<
   TrackerColumn | PoFieldSpec,
-  "is_price" | "is_identity" | "is_derived"
+  "editable" | "is_price" | "is_identity" | "is_derived"
 > & { derived_from?: string[] };
 
-/** Whether a role may edit a given column/field, from the flags the API sends. */
-export const canEditField = (r: Role, field: Gated) => {
-  if (field.is_derived) return false;
-  if (field.is_price) return canEditPrices(r);
-  if (field.is_identity) return canEditIdentity(r);
-  return canEditTracker(r) || canViewPos(r);
-};
-
-/** Why a field is locked, for the tooltip on a disabled input. */
-export const lockReason = (r: Role, field: Gated): string | null => {
+/** Why a field is locked, for the tooltip on a disabled input — `null` when it
+ * is not locked at all.
+ *
+ * `editable` settles *whether*; the flags only explain *why*, so a rule change
+ * in permissions.py needs nothing here. The fallback covers a field locked for
+ * a reason this UI has no wording for yet: still locked, just less helpfully.
+ */
+export const lockReason = (field: Gated): string | null => {
+  if (field.editable) return null;
   if (field.is_derived) {
     // name the actual inputs: four columns are derived now, and "change the
     // price" is unhelpful advice on a shipment-delay field
@@ -95,11 +97,11 @@ export const lockReason = (r: Role, field: Gated): string | null => {
       ? `Calculated: ${from[0]} minus ${from[1]}. Change those instead.`
       : "Calculated automatically from other columns";
   }
-  if (field.is_price && !canEditPrices(r))
+  if (field.is_price)
     return "Price fields can only be changed by the CEO or an admin";
-  if (field.is_identity && !canEditIdentity(r))
+  if (field.is_identity)
     return "PO, style and colour identify the row — CEO or admin only";
-  return null;
+  return "Read-only for your role";
 };
 
 const ORDER_DETAIL_SOURCES = ["buyer", "vendor", "const", "calc"];
