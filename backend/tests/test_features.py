@@ -421,3 +421,79 @@ def test_report_export_is_a_workbook(client, loaded):
     assert r.status_code == 200, r.text
     assert r.content[:2] == b"PK"  # xlsx is a zip
     assert "attachment" in r.headers["content-disposition"]
+
+
+# --- change trail on the PO view ----------------------------------------------
+
+def test_po_audit_covers_tracker_and_order_sheet_fields(client, loaded):
+    """The 'who changed this' trail has to reach both records behind a line.
+
+    A PO line spans a tracker row and the order line under it, and an edit to
+    either is worth the same question. Regression guard: the order-line half was
+    written but unreadable for a while, so the trail simply vanished for product
+    fields.
+    """
+    users, _ = loaded
+    detail = client.get("/api/pos/D652", headers=_auth(users["ceo"])).json()
+    row_id = detail["lines"][0]["tracker_row_id"]
+
+    client.patch(f"/api/pos/D652/rows/{row_id}",
+                 json={"tracker_fields": {"remarks": "checked by CEO"}},
+                 headers=_auth(users["ceo"]))
+    client.patch(f"/api/pos/D652/rows/{row_id}",
+                 json={"line_fields": {"composition": "92% Polyester, 8% Elastane"}},
+                 headers=_auth(users["ceo"]))
+
+    tracker_trail = client.get(
+        f"/api/pos/D652/rows/{row_id}/audit?origin=tracker&field=remarks",
+        headers=_auth(users["ceo"]),
+    ).json()
+    assert [e["new_value"] for e in tracker_trail] == ["checked by CEO"]
+    assert tracker_trail[0]["user_name"]
+    assert tracker_trail[0]["created_at"]
+
+    line_trail = client.get(
+        f"/api/pos/D652/rows/{row_id}/audit?origin=order_line&field=composition",
+        headers=_auth(users["ceo"]),
+    ).json()
+    assert len(line_trail) == 1
+    assert line_trail[0]["old_value"] == "100% Polyester"
+    assert line_trail[0]["new_value"] == "92% Polyester, 8% Elastane"
+
+
+def test_po_audit_keeps_the_whole_history(client, loaded):
+    """An upload is part of the trail, not just later hand edits."""
+    users, _ = loaded
+    detail = client.get("/api/pos/D652", headers=_auth(users["ceo"])).json()
+    row_id = detail["lines"][0]["tracker_row_id"]
+
+    client.patch(f"/api/pos/D652/rows/{row_id}",
+                 json={"tracker_fields": {"buyer_net_price": 9.99}},
+                 headers=_auth(users["ceo"]))
+    trail = client.get(
+        f"/api/pos/D652/rows/{row_id}/audit?origin=tracker&field=buyer_net_price",
+        headers=_auth(users["ceo"]),
+    ).json()
+    # newest first: the CEO's edit, then the merchant's upload that set it
+    assert [e["action"] for e in trail] == ["edit", "import"]
+    assert trail[0]["old_value"] == trail[1]["new_value"]
+
+
+def test_po_audit_is_ceo_and_admin_only(client, loaded):
+    users, _ = loaded
+    detail = client.get("/api/pos/D652", headers=_auth(users["merchant"])).json()
+    row_id = detail["lines"][0]["tracker_row_id"]
+    for role in ("merchant", "shipping"):
+        r = client.get(f"/api/pos/D652/rows/{row_id}/audit", headers=_auth(users[role]))
+        assert r.status_code == 403, role
+    assert client.get(f"/api/pos/D652/rows/{row_id}/audit",
+                      headers=_auth(users["admin"])).status_code == 200
+
+
+def test_po_audit_rejects_a_row_from_another_po(client, loaded):
+    """A real row id under the wrong PO must not leak that row's history."""
+    users, _ = loaded
+    detail = client.get("/api/pos/D652", headers=_auth(users["ceo"])).json()
+    row_id = detail["lines"][0]["tracker_row_id"]
+    r = client.get(f"/api/pos/D999/rows/{row_id}/audit", headers=_auth(users["ceo"]))
+    assert r.status_code == 404
