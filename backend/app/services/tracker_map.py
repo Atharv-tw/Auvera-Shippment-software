@@ -120,13 +120,29 @@ DERIVED_FORMULAS: dict[str, tuple[str, str]] = {
     "docs_delay_days": ("docs_received", "docs_due_date"),
 }
 
-DERIVED_KEYS: frozenset[str] = frozenset(DERIVED_FORMULAS)
+# Derived *dates*: a base date plus a fixed number of days, matching the sheet's
+# own offsets (Docs Due = ETD+7, Factory Pay Due = Docs Received+33, Buyer Pay
+# Due = Docs Shared+30). Like the subtractions they go empty when the base date
+# is missing, and they are recomputed rather than hand-entered.
+DERIVED_OFFSETS: dict[str, tuple[str, int]] = {
+    # key: (base_date_column, days_to_add)
+    "docs_due_date": ("etd", 7),
+    "factory_payment_due_date": ("docs_received", 33),
+    "buyer_payment_due_date": ("docs_shared_date", 30),
+}
+
+DERIVED_KEYS: frozenset[str] = frozenset(DERIVED_FORMULAS) | frozenset(DERIVED_OFFSETS)
 
 
 def derived_from_labels(key: str) -> list[str]:
     """The columns a derived value is calculated from, by their sheet labels."""
     pair = DERIVED_FORMULAS.get(key)
-    return [LABEL_BY_KEY.get(k, k).strip() for k in pair] if pair else []
+    if pair:
+        return [LABEL_BY_KEY.get(k, k).strip() for k in pair]
+    offset = DERIVED_OFFSETS.get(key)
+    if offset:
+        return [LABEL_BY_KEY.get(offset[0], offset[0]).strip()]
+    return []
 
 
 def field_class(key: str) -> str:
@@ -220,15 +236,24 @@ def vendor_fields(header: dict, line: dict) -> dict[str, Any]:
 def compute_derived(fields: dict[str, Any]) -> dict[str, Any]:
     """Recalculate every derived column from the values present in ``fields``.
 
-    Each is a subtraction. Money and quantities subtract as numbers; the two
-    delay columns subtract dates and yield whole days. **Any derived value whose
-    inputs are not both present is set to None**, not left at its previous
-    figure - a stale delay is worse than a blank one.
+    Two shapes: a subtraction (money/quantities as numbers, the delay columns as
+    whole days between two dates) or a date offset (a base date plus fixed days,
+    e.g. Docs Due = ETD + 7). **Any derived value whose inputs are not all
+    present is set to None**, not left at its previous figure - a stale due date
+    is worse than a blank one.
 
     Pass the row's full merged values, not a partial update: a vendor-side
     import alone has no buyer price to subtract from.
     """
+    from datetime import timedelta
+
     from app.services import cleaners
+
+    # Date offsets first: docs_due_date feeds docs_delay_days below, so it has to
+    # be recomputed before the subtractions read it.
+    for key, (base_key, days) in DERIVED_OFFSETS.items():
+        base = cleaners.clean_date(fields.get(base_key))
+        fields[key] = None if base is None else (base + timedelta(days=days)).isoformat()
 
     for key, (left_key, right_key) in DERIVED_FORMULAS.items():
         left, right = fields.get(left_key), fields.get(right_key)

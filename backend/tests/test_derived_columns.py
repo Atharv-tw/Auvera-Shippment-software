@@ -1,10 +1,11 @@
-"""The four calculated tracker columns.
+"""The calculated tracker columns.
 
-Each is a subtraction over two other columns, and each must go **empty** when
-either input is missing. The source spreadsheet cannot express that: Excel
-treats a blank date as day zero, so the real tracker carries -46221 in Delay
-Shipment and -7 in Day of Delayed Received docs on every row that has not
-shipped yet. Those are not data, they are the formula misfiring.
+Each is either a subtraction over two other columns or a date offset (a base
+date plus fixed days), and each must go **empty** when an input is missing. The
+source spreadsheet cannot express that: Excel treats a blank date as day zero,
+so the real tracker carries -46221 in Delay Shipment and -7 in Day of Delayed
+Received docs on every row that has not shipped yet. Those are not data, they
+are the formula misfiring.
 """
 
 from datetime import date
@@ -15,12 +16,15 @@ from app.models import TrackerRow
 from app.services import tracker_map as tm
 
 
-def test_all_four_derived_columns_are_declared():
+def test_every_derived_column_is_declared():
     assert tm.DERIVED_KEYS == {
         "price_difference",
         "short_extra_qty",
         "delay_shipment",
         "docs_delay_days",
+        "docs_due_date",
+        "factory_payment_due_date",
+        "buyer_payment_due_date",
     }
 
 
@@ -35,18 +39,24 @@ def test_all_four_derived_columns_are_declared():
             {"etd": "2026-04-24", "factory_delivery_date": "2026-01-31"},
             83,
         ),
+        # docs_due_date is itself derived (ETD + 7), so it is supplied here via
+        # the ETD it comes from, not typed in directly.
         (
             "docs_delay_days",
-            {"docs_received": "2026-05-08", "docs_due_date": "2026-05-01"},
+            {"etd": "2026-04-24", "docs_received": "2026-05-08"},  # due 2026-05-01
             7,
         ),
+        # the date offsets: base date plus a fixed number of days
+        ("docs_due_date", {"etd": "2026-04-24"}, "2026-05-01"),
+        ("factory_payment_due_date", {"docs_received": "2026-04-20"}, "2026-05-23"),
+        ("buyer_payment_due_date", {"docs_shared_date": "2026-04-25"}, "2026-05-25"),
         # negative and zero are legitimate values, not errors: a shipment can be
         # short or over, and docs can arrive early
         ("short_extra_qty", {"ship_qty": 300, "order_qty": 300}, 0),
         ("short_extra_qty", {"ship_qty": 343, "order_qty": 300}, 43),
         (
             "docs_delay_days",
-            {"docs_received": "2026-05-14", "docs_due_date": "2026-05-16"},
+            {"etd": "2026-05-09", "docs_received": "2026-05-14"},  # due 2026-05-16
             -2,
         ),
     ],
@@ -60,9 +70,14 @@ def test_formulas_match_the_source_spreadsheet(key, values, expected):
     [
         ("delay_shipment", {"etd": None, "factory_delivery_date": "2026-07-18"}),
         ("delay_shipment", {"etd": "2026-07-18", "factory_delivery_date": None}),
-        ("docs_delay_days", {"docs_received": None, "docs_due_date": "2026-05-01"}),
+        ("docs_delay_days", {"docs_received": None, "etd": "2026-04-24"}),
+        ("docs_delay_days", {"docs_received": "2026-05-08", "etd": None}),
         ("price_difference", {"buyer_net_price": 9.5, "factory_price": None}),
         ("short_extra_qty", {"ship_qty": None, "order_qty": 300}),
+        # a missing base date empties the offset columns too
+        ("docs_due_date", {"etd": None}),
+        ("factory_payment_due_date", {"docs_received": None}),
+        ("buyer_payment_due_date", {"docs_shared_date": None}),
     ],
 )
 def test_a_missing_input_empties_the_result(key, values):
@@ -119,6 +134,8 @@ def test_each_derived_column_can_name_its_inputs():
         "Factory Delivery dtd",
     ]
     assert tm.derived_from_labels("short_extra_qty") == ["Ship Qty ( pcs )", "Order qty"]
+    # a date offset names its single base column
+    assert tm.derived_from_labels("docs_due_date") == ["Actual Vessel Sailing date (ETD)"]
     assert tm.derived_from_labels("buyer_po") == [], "only derived columns have inputs"
 
 
