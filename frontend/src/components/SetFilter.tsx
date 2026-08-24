@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useGridFilter, type CustomFilterProps } from "ag-grid-react";
+import {
+  useGridFilter,
+  type CustomFilterProps,
+  type CustomFloatingFilterProps,
+} from "ag-grid-react";
 import type { IRowNode } from "ag-grid-community";
 
 /** The Excel autofilter dropdown: tick the values you want to keep.
@@ -170,5 +174,43 @@ export function SetFilter({
         )}
       </ul>
     </div>
+  );
+}
+
+/** Short read-only label of a tick-list selection, for the header row. */
+function summarize(model: SetFilterModel): string {
+  const shown = model.values.map((v) => (v === BLANK ? BLANK_LABEL : v));
+  if (shown.length === 0) return "(none)";
+  return shown.length <= 2 ? shown.join(", ") : `${shown.length} selected`;
+}
+
+/** The editable box in the header's floating-filter row. Without it AG Grid
+ * gives a custom filter a read-only placeholder, so text columns could only be
+ * filtered by opening the dropdown. Typing here emits a `contains` text model,
+ * which `SetFilter` already matches; the dropdown's tick-list keeps working and
+ * shows here as a read-only summary (its selection isn't editable as text). */
+export function SetFloatingFilter({
+  model,
+  onModelChange,
+}: CustomFloatingFilterProps<unknown, unknown, IncomingModel>) {
+  const isSet = isSetModel(model);
+  const text = model && !isSet ? String((model as TextModel).filter ?? "") : "";
+
+  const onInput = (value: string) => {
+    onModelChange(
+      value === "" ? null : { filterType: "text", type: "contains", filter: value },
+    );
+  };
+
+  return (
+    <input
+      type="search"
+      // A tick-list selection can't be shown as editable text, so surface it as
+      // a placeholder hint instead - typing over it switches to a text filter.
+      value={text}
+      placeholder={isSet ? summarize(model as SetFilterModel) : "Search…"}
+      onChange={(e) => onInput(e.target.value)}
+      className="w-full rounded border border-slate-300 bg-transparent px-1 py-0.5 text-xs outline-none focus:border-blue-500 dark:border-slate-600"
+    />
   );
 }

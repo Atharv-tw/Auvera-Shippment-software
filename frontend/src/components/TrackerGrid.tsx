@@ -21,7 +21,7 @@ import { canUseExcelView, lockReason } from "@/lib/permissions";
 import { Button, ErrorNote } from "@/components/ui";
 import { toDisplayDate, toIsoDate } from "@/lib/dateFormat";
 import { cellClassRulesFor, isoToNumber, trackerRowClass } from "@/lib/trackerHighlights";
-import { SetFilter } from "@/components/SetFilter";
+import { SetFilter, SetFloatingFilter } from "@/components/SetFilter";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -165,6 +165,12 @@ export function TrackerGrid({
             : c.type === "date"
               ? "agDateColumnFilter"
               : SetFilter,
+        // Text columns keep the tick-list dropdown, but also get a typeable box
+        // in the floating row (number/date filters bring their own; a custom
+        // filter would otherwise show a read-only placeholder there).
+        ...(c.type !== "number" && c.type !== "date"
+          ? { floatingFilterComponent: SetFloatingFilter }
+          : {}),
         cellClassRules: highlight ? cellClassRulesFor(c.key) : undefined,
         ...(c.type === "date"
           ? {
