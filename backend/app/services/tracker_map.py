@@ -131,12 +131,23 @@ DERIVED_OFFSETS: dict[str, tuple[str, int]] = {
     "buyer_payment_due_date": ("docs_shared_date", 30),
 }
 
-DERIVED_KEYS: frozenset[str] = frozenset(DERIVED_FORMULAS) | frozenset(DERIVED_OFFSETS)
+# Derived totals: quantity times unit price, on the *shipped* quantity - the
+# sheet multiplies by Ship Qty (=M*P / =M*S), not the order qty, so a total is
+# blank until the shipment quantity is known and follows a short/extra ship.
+DERIVED_PRODUCTS: dict[str, tuple[str, str]] = {
+    # key: (quantity_column, unit_price_column)
+    "buyer_total_value": ("ship_qty", "buyer_net_price"),
+    "vendor_total_value": ("ship_qty", "factory_price"),
+}
+
+DERIVED_KEYS: frozenset[str] = (
+    frozenset(DERIVED_FORMULAS) | frozenset(DERIVED_OFFSETS) | frozenset(DERIVED_PRODUCTS)
+)
 
 
 def derived_from_labels(key: str) -> list[str]:
     """The columns a derived value is calculated from, by their sheet labels."""
-    pair = DERIVED_FORMULAS.get(key)
+    pair = DERIVED_FORMULAS.get(key) or DERIVED_PRODUCTS.get(key)
     if pair:
         return [LABEL_BY_KEY.get(k, k).strip() for k in pair]
     offset = DERIVED_OFFSETS.get(key)
@@ -189,9 +200,7 @@ def buyer_fields(header: dict, line: dict) -> dict[str, Any]:
     style = style_with_topup(line.get("style_no"), line.get("topup"))
     qty = line.get("quantity")
     price = line.get("price")
-    total = line.get("total_spent")
-    if total is None and qty is not None and price is not None:
-        total = round(qty * price, 2)
+    # buyer_total_value is derived (ship_qty * price) - not set from the order qty
     # the sheet's "Supplier" is us; the customer is the D1 block
     customer = parse_buyer_block(header.get("buyer_block"))["name"]
     return {
@@ -206,7 +215,6 @@ def buyer_fields(header: dict, line: dict) -> dict[str, Any]:
         "order_qty": qty,
         "buyer_currency": header.get("currency"),
         "buyer_net_price": price,
-        "buyer_total_value": total,
         "item": line.get("description"),
         # what the buyer pays us, taken verbatim from the buyer sheet ("100%TT")
         "buyer_payment_terms_status": header.get("payment_terms"),
@@ -217,15 +225,13 @@ def buyer_fields(header: dict, line: dict) -> dict[str, Any]:
 
 def vendor_fields(header: dict, line: dict) -> dict[str, Any]:
     """Map a Vendor-Order block header + line to factory-side tracker fields."""
-    qty = line.get("quantity")
     price = line.get("price")
-    total = round(qty * price, 2) if qty is not None and price is not None else None
+    # vendor_total_value is derived (ship_qty * factory_price), not the order qty
     return {
         "factory_name": header.get("supplier"),
         "factory_delivery_date": line.get("etd"),
         "vendor_terms": header.get("terms_of_delivery"),
         "factory_price": price,
-        "vendor_total_value": total,
         # what we pay this factory, verbatim from its own block header - the
         # "100%" prefix is part of the term and is kept ("100%TT 30 DAYS")
         "factory_payment_terms_status": header.get("payment_terms"),
@@ -254,6 +260,12 @@ def compute_derived(fields: dict[str, Any]) -> dict[str, Any]:
     for key, (base_key, days) in DERIVED_OFFSETS.items():
         base = cleaners.clean_date(fields.get(base_key))
         fields[key] = None if base is None else (base + timedelta(days=days)).isoformat()
+
+    # Totals: shipped quantity times unit price.
+    for key, (qty_key, price_key) in DERIVED_PRODUCTS.items():
+        qty = cleaners.clean_number(fields.get(qty_key))
+        price = cleaners.clean_number(fields.get(price_key))
+        fields[key] = None if qty is None or price is None else round(qty * price, 2)
 
     for key, (left_key, right_key) in DERIVED_FORMULAS.items():
         left, right = fields.get(left_key), fields.get(right_key)

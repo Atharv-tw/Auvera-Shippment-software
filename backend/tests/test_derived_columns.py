@@ -1,7 +1,8 @@
 """The calculated tracker columns.
 
-Each is either a subtraction over two other columns or a date offset (a base
-date plus fixed days), and each must go **empty** when an input is missing. The
+Each is a subtraction over two columns, a date offset (a base date plus fixed
+days), or a total (shipped quantity times price), and each must go **empty**
+when an input is missing. The
 source spreadsheet cannot express that: Excel treats a blank date as day zero,
 so the real tracker carries -46221 in Delay Shipment and -7 in Day of Delayed
 Received docs on every row that has not shipped yet. Those are not data, they
@@ -25,6 +26,8 @@ def test_every_derived_column_is_declared():
         "docs_due_date",
         "factory_payment_due_date",
         "buyer_payment_due_date",
+        "buyer_total_value",
+        "vendor_total_value",
     }
 
 
@@ -50,6 +53,9 @@ def test_every_derived_column_is_declared():
         ("docs_due_date", {"etd": "2026-04-24"}, "2026-05-01"),
         ("factory_payment_due_date", {"docs_received": "2026-04-20"}, "2026-05-23"),
         ("buyer_payment_due_date", {"docs_shared_date": "2026-04-25"}, "2026-05-25"),
+        # totals: shipped quantity times unit price (not the order qty)
+        ("buyer_total_value", {"ship_qty": 296, "buyer_net_price": 9.5}, 2812.0),
+        ("vendor_total_value", {"ship_qty": 296, "factory_price": 8.3}, 2456.8),
         # negative and zero are legitimate values, not errors: a shipment can be
         # short or over, and docs can arrive early
         ("short_extra_qty", {"ship_qty": 300, "order_qty": 300}, 0),
@@ -78,6 +84,9 @@ def test_formulas_match_the_source_spreadsheet(key, values, expected):
         ("docs_due_date", {"etd": None}),
         ("factory_payment_due_date", {"docs_received": None}),
         ("buyer_payment_due_date", {"docs_shared_date": None}),
+        # no shipped quantity yet -> no total (the sheet multiplies by Ship Qty)
+        ("buyer_total_value", {"ship_qty": None, "buyer_net_price": 9.5}),
+        ("vendor_total_value", {"ship_qty": 296, "factory_price": None}),
     ],
 )
 def test_a_missing_input_empties_the_result(key, values):
@@ -136,6 +145,8 @@ def test_each_derived_column_can_name_its_inputs():
     assert tm.derived_from_labels("short_extra_qty") == ["Ship Qty ( pcs )", "Order qty"]
     # a date offset names its single base column
     assert tm.derived_from_labels("docs_due_date") == ["Actual Vessel Sailing date (ETD)"]
+    # a total names its quantity and price
+    assert tm.derived_from_labels("buyer_total_value") == ["Ship Qty ( pcs )", "Buyer Net Price"]
     assert tm.derived_from_labels("buyer_po") == [], "only derived columns have inputs"
 
 

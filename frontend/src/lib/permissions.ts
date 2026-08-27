@@ -91,10 +91,11 @@ export const lockReason = (field: Gated): string | null => {
   if (field.editable) return null;
   if (field.is_derived) {
     // name the actual inputs: "change the price" is unhelpful advice on a
-    // shipment-delay field. Subtractions have two inputs, date offsets one.
+    // shipment-delay field. Two inputs (a subtraction or a total), or one (a
+    // date offset). Wording stays operator-neutral so it fits all of them.
     const from = field.derived_from ?? [];
     if (from.length === 2)
-      return `Calculated: ${from[0]} minus ${from[1]}. Change those instead.`;
+      return `Calculated from ${from[0]} and ${from[1]}. Change those instead.`;
     if (from.length === 1)
       return `Calculated from ${from[0]}. Change that instead.`;
     return "Calculated automatically from other columns";
