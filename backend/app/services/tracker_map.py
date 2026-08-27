@@ -120,13 +120,40 @@ DERIVED_FORMULAS: dict[str, tuple[str, str]] = {
     "docs_delay_days": ("docs_received", "docs_due_date"),
 }
 
-DERIVED_KEYS: frozenset[str] = frozenset(DERIVED_FORMULAS)
+# Derived *dates*: a base date plus a fixed number of days, matching the sheet's
+# own offsets (Docs Due = ETD+7, Factory Pay Due = Docs Received+33, Buyer Pay
+# Due = Docs Shared+30). Like the subtractions they go empty when the base date
+# is missing, and they are recomputed rather than hand-entered.
+DERIVED_OFFSETS: dict[str, tuple[str, int]] = {
+    # key: (base_date_column, days_to_add)
+    "docs_due_date": ("etd", 7),
+    "factory_payment_due_date": ("docs_received", 33),
+    "buyer_payment_due_date": ("docs_shared_date", 30),
+}
+
+# Derived totals: quantity times unit price, on the *shipped* quantity - the
+# sheet multiplies by Ship Qty (=M*P / =M*S), not the order qty, so a total is
+# blank until the shipment quantity is known and follows a short/extra ship.
+DERIVED_PRODUCTS: dict[str, tuple[str, str]] = {
+    # key: (quantity_column, unit_price_column)
+    "buyer_total_value": ("ship_qty", "buyer_net_price"),
+    "vendor_total_value": ("ship_qty", "factory_price"),
+}
+
+DERIVED_KEYS: frozenset[str] = (
+    frozenset(DERIVED_FORMULAS) | frozenset(DERIVED_OFFSETS) | frozenset(DERIVED_PRODUCTS)
+)
 
 
 def derived_from_labels(key: str) -> list[str]:
     """The columns a derived value is calculated from, by their sheet labels."""
-    pair = DERIVED_FORMULAS.get(key)
-    return [LABEL_BY_KEY.get(k, k).strip() for k in pair] if pair else []
+    pair = DERIVED_FORMULAS.get(key) or DERIVED_PRODUCTS.get(key)
+    if pair:
+        return [LABEL_BY_KEY.get(k, k).strip() for k in pair]
+    offset = DERIVED_OFFSETS.get(key)
+    if offset:
+        return [LABEL_BY_KEY.get(offset[0], offset[0]).strip()]
+    return []
 
 
 def field_class(key: str) -> str:
@@ -173,9 +200,7 @@ def buyer_fields(header: dict, line: dict) -> dict[str, Any]:
     style = style_with_topup(line.get("style_no"), line.get("topup"))
     qty = line.get("quantity")
     price = line.get("price")
-    total = line.get("total_spent")
-    if total is None and qty is not None and price is not None:
-        total = round(qty * price, 2)
+    # buyer_total_value is derived (ship_qty * price) - not set from the order qty
     # the sheet's "Supplier" is us; the customer is the D1 block
     customer = parse_buyer_block(header.get("buyer_block"))["name"]
     return {
@@ -190,7 +215,6 @@ def buyer_fields(header: dict, line: dict) -> dict[str, Any]:
         "order_qty": qty,
         "buyer_currency": header.get("currency"),
         "buyer_net_price": price,
-        "buyer_total_value": total,
         "item": line.get("description"),
         # what the buyer pays us, taken verbatim from the buyer sheet ("100%TT")
         "buyer_payment_terms_status": header.get("payment_terms"),
@@ -201,15 +225,13 @@ def buyer_fields(header: dict, line: dict) -> dict[str, Any]:
 
 def vendor_fields(header: dict, line: dict) -> dict[str, Any]:
     """Map a Vendor-Order block header + line to factory-side tracker fields."""
-    qty = line.get("quantity")
     price = line.get("price")
-    total = round(qty * price, 2) if qty is not None and price is not None else None
+    # vendor_total_value is derived (ship_qty * factory_price), not the order qty
     return {
         "factory_name": header.get("supplier"),
         "factory_delivery_date": line.get("etd"),
         "vendor_terms": header.get("terms_of_delivery"),
         "factory_price": price,
-        "vendor_total_value": total,
         # what we pay this factory, verbatim from its own block header - the
         # "100%" prefix is part of the term and is kept ("100%TT 30 DAYS")
         "factory_payment_terms_status": header.get("payment_terms"),
@@ -220,15 +242,30 @@ def vendor_fields(header: dict, line: dict) -> dict[str, Any]:
 def compute_derived(fields: dict[str, Any]) -> dict[str, Any]:
     """Recalculate every derived column from the values present in ``fields``.
 
-    Each is a subtraction. Money and quantities subtract as numbers; the two
-    delay columns subtract dates and yield whole days. **Any derived value whose
-    inputs are not both present is set to None**, not left at its previous
-    figure - a stale delay is worse than a blank one.
+    Two shapes: a subtraction (money/quantities as numbers, the delay columns as
+    whole days between two dates) or a date offset (a base date plus fixed days,
+    e.g. Docs Due = ETD + 7). **Any derived value whose inputs are not all
+    present is set to None**, not left at its previous figure - a stale due date
+    is worse than a blank one.
 
     Pass the row's full merged values, not a partial update: a vendor-side
     import alone has no buyer price to subtract from.
     """
+    from datetime import timedelta
+
     from app.services import cleaners
+
+    # Date offsets first: docs_due_date feeds docs_delay_days below, so it has to
+    # be recomputed before the subtractions read it.
+    for key, (base_key, days) in DERIVED_OFFSETS.items():
+        base = cleaners.clean_date(fields.get(base_key))
+        fields[key] = None if base is None else (base + timedelta(days=days)).isoformat()
+
+    # Totals: shipped quantity times unit price.
+    for key, (qty_key, price_key) in DERIVED_PRODUCTS.items():
+        qty = cleaners.clean_number(fields.get(qty_key))
+        price = cleaners.clean_number(fields.get(price_key))
+        fields[key] = None if qty is None or price is None else round(qty * price, 2)
 
     for key, (left_key, right_key) in DERIVED_FORMULAS.items():
         left, right = fields.get(left_key), fields.get(right_key)

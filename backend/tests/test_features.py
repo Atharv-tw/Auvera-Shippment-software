@@ -64,6 +64,17 @@ def _rows(client, token):
     return {(x["style_no"], x["colour"]): x for x in r.json()}
 
 
+def _ship_in_full(client, token):
+    """Set every row's Ship Qty to its order qty. Totals are derived from the
+    *shipped* quantity, so a report over freshly imported rows is all zeroes
+    until something ships - shipping in full reproduces the sheet's own figures."""
+    for row in client.get("/api/tracker", headers=_auth(token)).json():
+        qty = (row.get("data") or {}).get("order_qty")
+        r = client.patch(f"/api/tracker/{row['id']}",
+                         json={"fields": {"ship_qty": qty}}, headers=_auth(token))
+        assert r.status_code == 200, r.text
+
+
 # --- sheet reading -------------------------------------------------------------
 
 def test_sheet_kind_comes_from_layout_not_filename(tmp_path):
@@ -395,6 +406,7 @@ def test_reports_are_ceo_and_admin_only(client, loaded):
 
 def test_report_by_season_totals_match_the_sheets(client, loaded):
     users, _ = loaded
+    _ship_in_full(client, users["ceo"])
     client.post("/api/seasons/assign", headers=_auth(users["merchant"]), json={
         "assignments": [{"buyer_po": "D652", "season_type": "SS", "season_year": 2026}],
     })
@@ -415,6 +427,7 @@ def test_report_by_season_totals_match_the_sheets(client, loaded):
 
 def test_report_by_vendor_splits_the_factories(client, loaded):
     users, _ = loaded
+    _ship_in_full(client, users["ceo"])
     report = client.get("/api/reports/summary?group_by=vendor",
                         headers=_auth(users["ceo"])).json()
     by_key = {b["key"]: b for b in report["buckets"]}

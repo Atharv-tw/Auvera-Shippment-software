@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from app import models  # noqa: F401 - ensure models are registered on Base
 from app.config import get_settings
 from app.database import Base, engine
+from app.mobile_guard import is_phone
 
 settings = get_settings()
 log = logging.getLogger("app")
@@ -47,6 +48,31 @@ async def surface_errors_with_cors(request: Request, call_next):
             body["error"] = f"{type(exc).__name__}: {exc}"
             body["traceback"] = traceback.format_exc().splitlines()[-12:]
         return JSONResponse(status_code=500, content=body)
+
+
+# The no-phones rule, server side. Registered after the error catch-all and
+# before CORS, so it sits *inside* CORS: the 403 passes back out through
+# CORSMiddleware and the browser can actually read it instead of reporting a
+# bogus CORS failure. Health/uptime probes and CORS preflight are exempt so
+# monitoring and cross-origin calls from allowed desktops keep working.
+_PHONE_EXEMPT_PREFIXES = ("/ping", "/api/health")
+
+
+@app.middleware("http")
+async def block_phones(request: Request, call_next):
+    if (
+        request.method != "OPTIONS"
+        and not request.url.path.startswith(_PHONE_EXEMPT_PREFIXES)
+        and is_phone(request.headers.get("user-agent"))
+    ):
+        return JSONResponse(
+            status_code=403,
+            content={
+                "detail": "This site is not available on phones. "
+                "Please use a desktop or laptop."
+            },
+        )
+    return await call_next(request)
 
 
 app.add_middleware(
