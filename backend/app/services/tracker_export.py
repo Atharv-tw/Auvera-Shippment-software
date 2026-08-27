@@ -98,7 +98,7 @@ def build_tracker_workbook(rows, keys: list[str] | None = None) -> Workbook:
     # sub-total row
     ws.cell(row=1, column=1, value="Sub Total").font = Font(bold=True, size=9)
     for key, total in subtotals.items():
-        ws.cell(row=1, column=index_of[key], value=round(total, 2)).font = Font(bold=True, size=9)
+        ws.cell(row=1, column=index_of[key], value=round(total, 4)).font = Font(bold=True, size=9)
 
     ws.freeze_panes = "A3"
     return wb

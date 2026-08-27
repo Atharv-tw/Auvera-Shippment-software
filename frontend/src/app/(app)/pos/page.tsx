@@ -11,6 +11,8 @@ import { poLinePath } from "@/lib/routes";
 import type { PoSummary, SeasonSummary } from "@/lib/types";
 
 const nf = new Intl.NumberFormat();
+// prices carry up to 4 decimals; the default formatter would drop the fourth
+const moneyFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 });
 
 export default function PurchaseOrdersPage() {
   const { user } = useAuth();
@@ -119,7 +121,7 @@ export default function PurchaseOrdersPage() {
                     </td>
                     <td className="py-2.5 pr-4 text-right">{p.line_count}</td>
                     <td className="py-2.5 pr-4 text-right">{nf.format(p.order_qty)}</td>
-                    <td className="py-2.5 pr-4 text-right">{nf.format(p.buyer_total_value)}</td>
+                    <td className="py-2.5 pr-4 text-right">{moneyFmt.format(p.buyer_total_value)}</td>
                     <td className="py-2.5 pr-4 text-xs text-slate-500">
                       {Object.entries(p.statuses)
                         .map(([label, n]) => `${label} (${n})`)

@@ -22,6 +22,8 @@ import { clsx } from "@/components/clsx";
 import type { PoDetail, PoLine, PoSchema, Season } from "@/lib/types";
 
 const nf = new Intl.NumberFormat();
+// prices carry up to 4 decimals; the default formatter would drop the fourth
+const moneyFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 });
 
 /** `/pos/D579` opens the first line; `/pos/D579/20271108-T1/Black` opens that one. */
 export default function PurchaseOrderPage({
@@ -129,8 +131,8 @@ export default function PurchaseOrderPage({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Style / colour lines" value={d.lines.length} />
           <Stat label="Order qty" value={nf.format(d.totals.order_qty ?? 0)} />
-          <Stat label="Buyer value" value={nf.format(d.totals.buyer_total_value ?? 0)} />
-          <Stat label="Vendor value" value={nf.format(d.totals.vendor_total_value ?? 0)} />
+          <Stat label="Buyer value" value={moneyFmt.format(d.totals.buyer_total_value ?? 0)} />
+          <Stat label="Vendor value" value={moneyFmt.format(d.totals.vendor_total_value ?? 0)} />
         </div>
 
         <div className="mt-4">

@@ -26,8 +26,10 @@ import { SetFilter, SetFloatingFilter } from "@/components/SetFilter";
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 const nf = new Intl.NumberFormat();
+// Prices carry up to 4 decimals; keep the 2-decimal money look but show the
+// extra places when they are actually used rather than truncating to pennies.
 const money = (n: number) =>
-  n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
 const lightTheme = themeQuartz;
 const darkTheme = themeQuartz.withPart(colorSchemeDark);
