@@ -34,9 +34,11 @@ const GROUPS: { value: GroupBy; label: string }[] = [
 const SERIES = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#dc2626", "#0891b2"];
 
 const nf = new Intl.NumberFormat();
-const money = (n: number) => nf.format(Math.round(n));
+// prices carry up to 4 decimals, so report money is shown exact, not rounded
+const moneyFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 });
+const money = (n: number) => moneyFmt.format(n);
 // recharts hands formatters a loose ValueType
-const fmtValue = (v: unknown) => nf.format(Number(v ?? 0));
+const fmtValue = (v: unknown) => moneyFmt.format(Number(v ?? 0));
 
 export default function ReportsPage() {
   const { user } = useAuth();
@@ -81,9 +83,9 @@ export default function ReportsPage() {
 
   const chartData = (data?.buckets ?? []).slice(0, 12).map((b) => ({
     name: b.label,
-    Buyer: Math.round(b.buyer_value),
-    Vendor: Math.round(b.vendor_value),
-    Margin: Math.round(b.margin),
+    Buyer: b.buyer_value,
+    Vendor: b.vendor_value,
+    Margin: b.margin,
     qty: b.order_qty,
   }));
 
