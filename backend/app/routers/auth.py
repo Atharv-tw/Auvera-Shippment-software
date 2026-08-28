@@ -15,19 +15,11 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.email == body.email.lower()).first():
         raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
-    # first user becomes admin so a fresh install is bootstrappable
+    # The first user becomes admin so a fresh install is bootstrappable. Everyone
+    # after that signs up with no role and waits on the waitlist until an admin
+    # approves them and assigns one - registration never grants access itself.
     is_first_user = db.query(User.id).first() is None
-    if is_first_user:
-        role = "admin"
-    else:
-        # admin can only be created via seed / first user; self-registration is
-        # limited to the non-privileged roles
-        if body.role not in permissions.SELF_REGISTER_ROLES:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                f"Role must be one of: {', '.join(permissions.SELF_REGISTER_ROLES)}",
-            )
-        role = body.role
+    role = permissions.ADMIN if is_first_user else permissions.PENDING
     user = User(
         email=body.email.lower(),
         password_hash=hash_password(body.password),

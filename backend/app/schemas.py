@@ -12,7 +12,6 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
     name: str
-    role: str = "merchant"
 
 
 class LoginRequest(BaseModel):
@@ -32,6 +31,23 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+
+
+# --- admin: user management ----------------------------------------------------
+
+class UserAdminOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    email: str
+    name: str
+    role: str
+    is_active: bool
+    created_at: datetime
+
+
+class UserRoleUpdate(BaseModel):
+    role: str | None = None
+    is_active: bool | None = None
 
 
 # --- orders / vendor orders ----------------------------------------------------

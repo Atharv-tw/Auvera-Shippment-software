@@ -3,13 +3,20 @@ export type Role =
   | "ceo"
   | "shipping_manager"
   | "merchant"
-  | "vendor"; // legacy, read-only
+  | "vendor" // legacy, read-only
+  | "pending"; // signed up, awaiting an admin to assign a role
 
 export interface User {
   id: number;
   email: string;
   name: string;
   role: Role;
+}
+
+/** A user as the admin panel sees it - with account status and join date. */
+export interface UserAdmin extends User {
+  is_active: boolean;
+  created_at: string;
 }
 
 export interface AuditEntry {

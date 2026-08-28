@@ -143,6 +143,7 @@ def cors_health():
 
 
 from app.routers import (  # noqa: E402
+    admin,
     auth,
     customers,
     orders,
@@ -161,6 +162,7 @@ mount_admin(app)
 
 for _router in (
     auth.router,
+    admin.router,
     customers.router,
     vendors.router,
     orders.router,
