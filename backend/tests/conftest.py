@@ -51,3 +51,33 @@ def client(TestingSession):
     app.dependency_overrides[get_db] = override
     yield TestClient(app)
     app.dependency_overrides.clear()
+
+
+def auth_header(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def register(client, email, role=None, admin=None, password="secret123"):
+    """Register a user and return their bearer token.
+
+    Registration no longer grants a role: the first user becomes ``admin`` and
+    everyone after lands on the waitlist as ``pending``. So to get a user of a
+    given role, this registers them and then has an ``admin`` token approve them
+    via the admin API - which is how it happens for real. The bootstrap admin is
+    never promoted/demoted here, so ``role="merchant"`` on the first user still
+    yields the forced admin.
+    """
+    r = client.post(
+        "/api/auth/register",
+        json={"email": email, "password": password, "name": email.split("@")[0]},
+    )
+    assert r.status_code == 201, r.text
+    data = r.json()
+    token, uid, actual = data["access_token"], data["user"]["id"], data["user"]["role"]
+    if role is not None and actual == "pending" and role != "pending":
+        assert admin is not None, f"promoting {email} to {role} needs an admin token"
+        pr = client.patch(
+            f"/api/admin/users/{uid}", json={"role": role}, headers=auth_header(admin)
+        )
+        assert pr.status_code == 200, pr.text
+    return token

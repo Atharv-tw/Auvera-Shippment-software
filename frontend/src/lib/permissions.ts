@@ -12,19 +12,27 @@ import type { PoFieldSpec, Role, TrackerColumn } from "./types";
  * gets a 403 from the endpoint.
  */
 
-export const SELF_REGISTER_ROLES: { value: Role; label: string }[] = [
-  { value: "merchant", label: "Merchant" },
-  { value: "shipping_manager", label: "Shipping Manager" },
-  { value: "ceo", label: "CEO" },
-];
-
 export const ROLE_LABELS: Record<Role, string> = {
   admin: "Admin",
   ceo: "CEO",
   shipping_manager: "Shipping Manager",
   merchant: "Merchant",
   vendor: "Vendor",
+  pending: "Awaiting approval",
 };
+
+/** Roles an admin may assign in the user-management panel (not `pending`, which
+ * is the absence of a role, nor the legacy `vendor`). Mirrors ALL_ROLES on the
+ * backend. */
+export const ASSIGNABLE_ROLES: { value: Role; label: string }[] = [
+  { value: "merchant", label: "Merchant" },
+  { value: "shipping_manager", label: "Shipping Manager" },
+  { value: "ceo", label: "CEO" },
+  { value: "admin", label: "Admin" },
+];
+
+/** Approve waitlisted accounts and assign roles - the admin panel. */
+export const canManageUsers = (r: Role) => r === "admin";
 
 /** The Shipment Tracker page itself, and every write to it. */
 export const canViewTracker = (r: Role) =>

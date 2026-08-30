@@ -19,6 +19,7 @@ import {
   canViewCustomers,
   canViewVendors,
   canViewReports,
+  canManageUsers,
 } from "@/lib/permissions";
 
 type NavItem = { href: string; label: string; show: (r: Role) => boolean };
@@ -49,6 +50,7 @@ const NAV: { heading: string | null; items: NavItem[] }[] = [
       { href: "/customers", label: "Customers", show: canViewCustomers },
       { href: "/vendors", label: "Vendors", show: canViewVendors },
       { href: "/reports", label: "Reports", show: canViewReports },
+      { href: "/users", label: "Users", show: canManageUsers },
     ],
   },
 ];
@@ -59,10 +61,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/login");
+    if (loading) return;
+    if (!user) router.replace("/login");
+    // A pending account has no role and no access - it belongs on the waitlist,
+    // never on an app page.
+    else if (user.role === "pending") router.replace("/waitlist");
   }, [loading, user, router]);
 
-  if (loading || !user) return <Spinner />;
+  if (loading || !user || user.role === "pending") return <Spinner />;
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);

@@ -261,11 +261,12 @@ def compute_derived(fields: dict[str, Any]) -> dict[str, Any]:
         base = cleaners.clean_date(fields.get(base_key))
         fields[key] = None if base is None else (base + timedelta(days=days)).isoformat()
 
-    # Totals: shipped quantity times unit price.
+    # Totals: shipped quantity times unit price. Prices carry up to 4 decimals,
+    # so the total is kept to 4 too rather than rounded to pennies.
     for key, (qty_key, price_key) in DERIVED_PRODUCTS.items():
         qty = cleaners.clean_number(fields.get(qty_key))
         price = cleaners.clean_number(fields.get(price_key))
-        fields[key] = None if qty is None or price is None else round(qty * price, 2)
+        fields[key] = None if qty is None or price is None else round(qty * price, 4)
 
     for key, (left_key, right_key) in DERIVED_FORMULAS.items():
         left, right = fields.get(left_key), fields.get(right_key)

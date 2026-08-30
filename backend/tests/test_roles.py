@@ -1,20 +1,16 @@
 """Role-based permissions and the field-level audit trail."""
 
-from .conftest import CUSTOMER_FILES, SAMPLES
+from .conftest import CUSTOMER_FILES, SAMPLES, auth_header, register
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
-def _register(client, email, role):
-    r = client.post("/api/auth/register", json={
-        "email": email, "password": "secret123", "name": email.split("@")[0], "role": role,
-    })
-    assert r.status_code == 201, r.text
-    return r.json()["access_token"]
+def _register(client, email, role=None, admin=None):
+    return register(client, email, role=role, admin=admin)
 
 
 def _auth(token):
-    return {"Authorization": f"Bearer {token}"}
+    return auth_header(token)
 
 
 def _files(names):
@@ -27,10 +23,10 @@ def _files(names):
 
 def _bootstrap(client):
     """admin (first user) + one user of every role; returns tokens + first row id."""
-    admin = _register(client, "admin@example.com", role="admin")  # first -> admin regardless
-    ceo = _register(client, "ceo@example.com", role="ceo")
-    shipping = _register(client, "ship@example.com", role="shipping_manager")
-    merchant = _register(client, "merchant@example.com", role="merchant")
+    admin = _register(client, "admin@example.com")  # first user -> admin regardless
+    ceo = _register(client, "ceo@example.com", role="ceo", admin=admin)
+    shipping = _register(client, "ship@example.com", role="shipping_manager", admin=admin)
+    merchant = _register(client, "merchant@example.com", role="merchant", admin=admin)
     # populate the tracker via an upload (admin is an allowed uploader)
     r = client.post("/api/orders/upload", files=_files(CUSTOMER_FILES[:1]), headers=_auth(admin))
     assert r.status_code == 200, r.text
@@ -39,17 +35,19 @@ def _bootstrap(client):
 
 
 def test_admin_role_forced_for_first_user(client):
-    admin = _register(client, "admin@example.com", role="merchant")  # asked merchant...
+    admin = _register(client, "admin@example.com")
     me = client.get("/api/auth/me", headers=_auth(admin)).json()
-    assert me["role"] == "admin"  # ...but first user is always admin
+    assert me["role"] == "admin"  # first user is always admin
 
 
-def test_cannot_self_register_admin(client):
-    _register(client, "admin@example.com", role="admin")  # first user
+def test_new_users_land_on_the_waitlist_with_no_role(client):
+    _register(client, "admin@example.com")  # first user -> admin
+    # a role in the body is ignored: registration never grants access now
     r = client.post("/api/auth/register", json={
         "email": "sneaky@example.com", "password": "secret123", "name": "x", "role": "admin",
     })
-    assert r.status_code == 403
+    assert r.status_code == 201, r.text
+    assert r.json()["user"]["role"] == "pending"
 
 
 def test_merchant_reads_tracker_rows_but_gets_no_tracker_page(client):

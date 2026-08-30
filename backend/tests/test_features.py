@@ -13,7 +13,7 @@ from app.services.order_parser import detect_kind_detail, parse_customer_order
 from app.services.parties import parse_buyer_block
 from app.services.seasons import season_for_date
 
-from .conftest import SAMPLES
+from .conftest import SAMPLES, auth_header, register
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -21,16 +21,12 @@ CUSTOMER_D652 = SAMPLES / "different sheets" / "Customer-Order-D652-18.04.2026.x
 VENDOR_D652 = SAMPLES / "different sheets" / "Vendor-Order-D652-18.04.2026.xlsx"
 
 
-def _register(client, email, role):
-    r = client.post("/api/auth/register", json={
-        "email": email, "password": "secret123", "name": email.split("@")[0], "role": role,
-    })
-    assert r.status_code == 201, r.text
-    return r.json()["access_token"]
+def _register(client, email, role=None, admin=None):
+    return register(client, email, role=role, admin=admin)
 
 
 def _auth(token):
-    return {"Authorization": f"Bearer {token}"}
+    return auth_header(token)
 
 
 def _upload(client, token, *paths):
@@ -42,12 +38,13 @@ def _upload(client, token, *paths):
 
 @pytest.fixture()
 def users(client):
-    """admin (first user) plus one of every other role."""
+    """admin (first user) plus one of every other role, approved by the admin."""
+    admin = _register(client, "admin@example.com")
     return {
-        "admin": _register(client, "admin@example.com", "admin"),
-        "ceo": _register(client, "ceo@example.com", "ceo"),
-        "shipping": _register(client, "ship@example.com", "shipping_manager"),
-        "merchant": _register(client, "merchant@example.com", "merchant"),
+        "admin": admin,
+        "ceo": _register(client, "ceo@example.com", "ceo", admin=admin),
+        "shipping": _register(client, "ship@example.com", "shipping_manager", admin=admin),
+        "merchant": _register(client, "merchant@example.com", "merchant", admin=admin),
     }
 
 

@@ -30,9 +30,18 @@ CEO = "ceo"
 SHIPPING_MANAGER = "shipping_manager"
 MERCHANT = "merchant"
 
-# roles that may be chosen at self-registration (admin is bootstrap/seed only)
-SELF_REGISTER_ROLES = (CEO, SHIPPING_MANAGER, MERCHANT)
+# A new account has no role until an admin assigns one: it signs up, lands on
+# the waitlist, and passes none of the can_* checks below until approved.
+PENDING = "pending"
+
+# The roles an admin may assign. `pending` is deliberately absent - it is the
+# absence of a role, not something you grant.
 ALL_ROLES = (ADMIN, CEO, SHIPPING_MANAGER, MERCHANT)
+
+
+def can_manage_users(role: str) -> bool:
+    """Approve waitlisted accounts and assign roles - the admin panel."""
+    return role == ADMIN
 
 
 def can_view_tracker(role: str) -> bool:

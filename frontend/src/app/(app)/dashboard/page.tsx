@@ -19,12 +19,15 @@ import { useDebounced } from "@/lib/useDebounced";
 import type { Order, TrackerRow, VendorOrder } from "@/lib/types";
 
 const nf = new Intl.NumberFormat();
+// prices carry up to 4 decimals; the default formatter caps at 3 and would drop
+// the fourth place, so money is formatted with its own 4-decimal cap
+const moneyFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 });
 
 /** Tracker money cells arrive as numbers or as whatever the sheet held. */
 function money(value: unknown) {
   if (value === null || value === undefined || value === "") return "—";
   const n = Number(value);
-  return Number.isFinite(n) ? nf.format(n) : String(value);
+  return Number.isFinite(n) ? moneyFmt.format(n) : String(value);
 }
 
 function StatCard({ label, value }: { label: string; value: number | string }) {

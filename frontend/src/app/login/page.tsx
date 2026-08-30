@@ -6,14 +6,12 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/lib/auth";
 import { Button, Input, ErrorNote } from "@/components/ui";
-import { SELF_REGISTER_ROLES } from "@/lib/permissions";
 import { ArrowLeft } from "lucide-react";
 
 interface FormValues {
   email: string;
   password: string;
   name: string;
-  role: string;
 }
 
 export default function LoginPage() {
@@ -24,19 +22,13 @@ export default function LoginPage() {
     register,
     handleSubmit,
     formState: { isSubmitting },
-  } = useForm<FormValues>({ defaultValues: { role: "merchant" } });
+  } = useForm<FormValues>();
 
   const onSubmit = async (values: FormValues) => {
     setError(null);
     try {
       if (mode === "login") await login(values.email, values.password);
-      else
-        await registerAccount(
-          values.email,
-          values.password,
-          values.name,
-          values.role,
-        );
+      else await registerAccount(values.email, values.password, values.name);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     }
@@ -98,27 +90,15 @@ export default function LoginPage() {
           <p className="mt-1 text-sm text-slate-500">
             {mode === "login"
               ? "Sign in to access the shipment tracker"
-              : "Register a new account with your role"}
+              : "Create your account — an admin will assign your access once you sign up"}
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-3">
             {mode === "register" && (
-              <>
-                <Input
-                  placeholder="Your name"
-                  {...register("name", { required: true })}
-                />
-                <select
-                  {...register("role", { required: true })}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100:ring-blue-900/40"
-                >
-                  {SELF_REGISTER_ROLES.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </>
+              <Input
+                placeholder="Your name"
+                {...register("name", { required: true })}
+              />
             )}
             <Input
               type="email"

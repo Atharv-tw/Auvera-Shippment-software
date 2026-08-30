@@ -1,18 +1,14 @@
-from .conftest import CUSTOMER_FILES, SAMPLES, VENDOR_FILES
+from .conftest import CUSTOMER_FILES, SAMPLES, VENDOR_FILES, auth_header, register
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
-def _register(client, email, password="secret123", role="merchant"):
-    r = client.post("/api/auth/register", json={
-        "email": email, "password": password, "name": email.split("@")[0], "role": role,
-    })
-    assert r.status_code == 201, r.text
-    return r.json()["access_token"]
+def _register(client, email, role=None, admin=None, password="secret123"):
+    return register(client, email, role=role, admin=admin, password=password)
 
 
 def _auth(token):
-    return {"Authorization": f"Bearer {token}"}
+    return auth_header(token)
 
 
 def _files(names):
@@ -64,22 +60,22 @@ def test_full_flow(client):
 
 
 def test_non_uploader_cannot_upload(client):
-    _register(client, "admin@example.com")                              # first -> admin
-    shipping = _register(client, "ship@example.com", role="shipping_manager")
+    admin = _register(client, "admin@example.com")                      # first -> admin
+    shipping = _register(client, "ship@example.com", role="shipping_manager", admin=admin)
     r = client.post("/api/orders/upload", files=_files(CUSTOMER_FILES[:1]), headers=_auth(shipping))
     assert r.status_code == 403
 
 
 def test_ceo_can_upload(client):
-    _register(client, "admin@example.com")
-    ceo = _register(client, "ceo@example.com", role="ceo")
+    admin = _register(client, "admin@example.com")
+    ceo = _register(client, "ceo@example.com", role="ceo", admin=admin)
     r = client.post("/api/orders/upload", files=_files(CUSTOMER_FILES[:1]), headers=_auth(ceo))
     assert r.status_code == 200, r.text
 
 
 def test_merchant_can_upload(client):
-    _register(client, "admin@example.com")
-    merchant = _register(client, "merchant@example.com", role="merchant")
+    admin = _register(client, "admin@example.com")
+    merchant = _register(client, "merchant@example.com", role="merchant", admin=admin)
     r = client.post("/api/orders/upload", files=_files(CUSTOMER_FILES[:1]), headers=_auth(merchant))
     assert r.status_code == 200, r.text
 

@@ -93,13 +93,16 @@ def _finalise(bucket: dict) -> dict:
     bucket["avg_docs_delay"] = (
         round(sum(docs_delays) / len(docs_delays), 2) if docs_delays else None
     )
-    bucket["margin"] = round(bucket["buyer_value"] - bucket["vendor_value"], 2)
+    bucket["margin"] = round(bucket["buyer_value"] - bucket["vendor_value"], 4)
     bucket["margin_pct"] = (
         round(100 * bucket["margin"] / bucket["buyer_value"], 2)
         if bucket["buyer_value"] else None
     )
-    for key in ("order_qty", "ship_qty", "short_extra_qty", "buyer_value", "vendor_value"):
+    for key in ("order_qty", "ship_qty", "short_extra_qty"):
         bucket[key] = round(bucket[key], 2)
+    # money values follow the 4-decimal prices they are summed from
+    for key in ("buyer_value", "vendor_value"):
+        bucket[key] = round(bucket[key], 4)
     return bucket
 
 

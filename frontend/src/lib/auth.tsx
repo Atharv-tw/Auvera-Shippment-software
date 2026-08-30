@@ -10,12 +10,7 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (
-    email: string,
-    password: string,
-    name: string,
-    role: string,
-  ) => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -47,7 +42,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       queryClient.clear();
       setToken(data.access_token);
       setUser(data.user);
-      router.push("/dashboard");
+      // A brand-new account has no role yet: send it to the waitlist rather than
+      // the dashboard, which would only bounce it straight back.
+      router.push(data.user.role === "pending" ? "/waitlist" : "/dashboard");
     },
     [queryClient, router],
   );
@@ -65,11 +62,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const register = useCallback(
-    async (email: string, password: string, name: string, role: string) => {
+    async (email: string, password: string, name: string) => {
       startSession(
         await api<TokenResponse>("/api/auth/register", {
           method: "POST",
-          body: JSON.stringify({ email, password, name, role }),
+          body: JSON.stringify({ email, password, name }),
         }),
       );
     },

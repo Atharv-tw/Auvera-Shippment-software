@@ -56,6 +56,9 @@ def test_every_derived_column_is_declared():
         # totals: shipped quantity times unit price (not the order qty)
         ("buyer_total_value", {"ship_qty": 296, "buyer_net_price": 9.5}, 2812.0),
         ("vendor_total_value", {"ship_qty": 296, "factory_price": 8.3}, 2456.8),
+        # prices carry up to 4 decimals, and the total keeps them
+        ("buyer_total_value", {"ship_qty": 296, "buyer_net_price": 9.1234}, 2700.5264),
+        ("price_difference", {"buyer_net_price": 9.1234, "factory_price": 8.3}, 0.8234),
         # negative and zero are legitimate values, not errors: a shipment can be
         # short or over, and docs can arrive early
         ("short_extra_qty", {"ship_qty": 300, "order_qty": 300}, 0),
