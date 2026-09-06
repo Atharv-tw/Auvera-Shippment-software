@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { AgGridReact } from "ag-grid-react";
 import {
   AllCommunityModule,
@@ -91,6 +98,13 @@ export function TrackerGrid({
   const [dirtyCount, setDirtyCount] = useState(0);
   const changesRef = useRef<Map<number, Record<string, unknown>>>(new Map());
 
+  /** Columns this role could write if editing were on - what a triple-click
+   * is allowed to open. */
+  const editableKeys = useMemo(
+    () => new Set(canEdit ? columns.filter((c) => c.editable).map((c) => c.key) : []),
+    [columns, canEdit],
+  );
+
   const vendorKeys = useMemo(
     () => columns.filter((c) => c.source === "vendor").map((c) => c.key),
     [columns],
@@ -133,7 +147,10 @@ export function TrackerGrid({
             ? "tg-head-buyer"
             : c.source === "vendor"
               ? "tg-head-vendor"
-              : c.source === "calc" || c.source === "const"
+              // is_derived, not the source: a column can be calculated and
+              // still be an operational one (Shipment Status), and it should
+              // read as calculated wherever it sits.
+              : c.is_derived || c.source === "calc" || c.source === "const"
                 ? "tg-head-derived"
                 : "",
           locked ? "tg-head-locked" : "",
@@ -231,6 +248,50 @@ export function TrackerGrid({
     event.node.setDataValue(key, null); // fires onCellValueChanged
   };
 
+  /** Select the whole cell value, not the word under the pointer.
+   *
+   * Double-clicking a value in a read-only grid means "give me this one", and
+   * the browser's own double-click would stop at the first space - "MSC" out
+   * of "MSC SINDY". Ctrl+C then copies the value as it reads on screen.
+   */
+  const selectCellText = (cell: Element) => {
+    const selection = window.getSelection();
+    if (!selection) return;
+    const range = document.createRange();
+    range.selectNodeContents(cell);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  };
+
+  /** Copy and edit gestures, read off the DOM rather than AG Grid's own cell
+   * events: with cell text selection on, the grid hands the mouse to the
+   * browser and stops firing cellClicked / cellDoubleClicked.
+   *
+   * Second click selects the value to copy. A third turns editing on and opens
+   * that cell - a correction spotted while reading should not cost a trip to
+   * the Edit button, but neither should a stray double-click leave the grid in
+   * a state where the next keystroke changes data.
+   */
+  const onGridClick = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (editing) return; // in edit mode a double-click already opens the editor
+    const cell = (e.target as HTMLElement).closest(".ag-cell");
+    if (!cell) return;
+    if (e.detail === 2) {
+      // after the tick, so the browser's word-selection is already in place
+      // and ours replaces it rather than racing it
+      setTimeout(() => selectCellText(cell), 0);
+      return;
+    }
+    if (e.detail < 3) return;
+    const colKey = cell.getAttribute("col-id");
+    const rowIndex = Number(cell.closest(".ag-row")?.getAttribute("row-index"));
+    if (!colKey || !Number.isInteger(rowIndex) || !editableKeys.has(colKey)) return;
+    window.getSelection()?.removeAllRanges();
+    setEditing(true);
+    // the column only becomes editable on the next render
+    setTimeout(() => apiRef.current?.startEditingCell({ rowIndex, colKey }), 0);
+  };
+
   /** Totals over the selected rows, or over everything the filters left if
    * nothing is selected - the number Excel puts in the status bar when you drag
    * across a column. */
@@ -320,7 +381,8 @@ export function TrackerGrid({
         <p className="text-xs text-slate-500">
           {editing
             ? "Double-click a cell to edit, or select it and press Delete to clear. Blue = buyer, green = vendor, grey = derived. Hatched columns are read-only for your role — hover one to see why."
-            : "Read-only view. " + (canEdit ? "Click Edit to change values." : "")}
+            : "Read-only view. Double-click a value to select it for copying" +
+              (canEdit ? ", triple-click to edit it." : ".")}
         </p>
         {highlight && (
           <p className="text-xs text-slate-400">
@@ -401,7 +463,7 @@ export function TrackerGrid({
           background-image:repeating-linear-gradient(45deg,rgba(148,163,184,.12) 0 4px,transparent 4px 8px);
         }
       `}</style>
-      <div style={{ height }}>
+      <div style={{ height }} onClick={onGridClick}>
         <AgGridReact
           theme={theme === "dark" ? darkTheme : lightTheme}
           columnDefs={columnDefs}
@@ -417,6 +479,11 @@ export function TrackerGrid({
           onGridReady={onGridReady}
           onCellValueChanged={onCellValueChanged}
           onCellKeyDown={onCellKeyDown}
+          // Lets the browser select text inside a cell, which is the only way
+          // to copy a value out of a Community grid - it has no clipboard
+          // service. Row selection and editing are unaffected.
+          enableCellTextSelection
+          ensureDomOrder
           onFilterChanged={recomputeTotals}
           onSelectionChanged={recomputeTotals}
           onRowDataUpdated={recomputeTotals}
