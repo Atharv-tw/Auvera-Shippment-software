@@ -26,7 +26,8 @@ def test_fills_the_operational_columns(db):
     assert row.container_size == "40HC"       # AY "Size" is the container size
     assert row.vessel == "MSC SINDY"
     assert row.forwarder == "Cargo Consolidators"
-    assert row.shipment_status == "shipped"
+    # derived, not taken from the sheet: this row has a BL number and an ETD
+    assert row.shipment_status == "Shipped"
 
 
 def test_derived_columns_are_recomputed_not_copied(db):

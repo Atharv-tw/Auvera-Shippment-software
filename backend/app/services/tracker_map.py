@@ -140,13 +140,24 @@ DERIVED_PRODUCTS: dict[str, tuple[str, str]] = {
     "vendor_total_value": ("ship_qty", "factory_price"),
 }
 
+# Shipment Status is not typed either, it is answered by the shipment's own
+# evidence: a BL/AWB/FCR number or an actual sailing date means the goods have
+# left, and until one of them exists the line is still only planned. Two values,
+# so the column can be filtered and counted on rather than read.
+STATUS_SHIPPED = "Shipped"
+STATUS_PLANNED = "Planned"
+SHIPPED_EVIDENCE: tuple[str, ...] = ("bl_no", "etd")
+
 DERIVED_KEYS: frozenset[str] = (
     frozenset(DERIVED_FORMULAS) | frozenset(DERIVED_OFFSETS) | frozenset(DERIVED_PRODUCTS)
+    | {"shipment_status"}
 )
 
 
 def derived_from_labels(key: str) -> list[str]:
     """The columns a derived value is calculated from, by their sheet labels."""
+    if key == "shipment_status":
+        return [LABEL_BY_KEY[k].strip() for k in SHIPPED_EVIDENCE]
     pair = DERIVED_FORMULAS.get(key) or DERIVED_PRODUCTS.get(key)
     if pair:
         return [LABEL_BY_KEY.get(k, k).strip() for k in pair]
@@ -267,6 +278,13 @@ def compute_derived(fields: dict[str, Any]) -> dict[str, Any]:
         qty = cleaners.clean_number(fields.get(qty_key))
         price = cleaners.clean_number(fields.get(price_key))
         fields[key] = None if qty is None or price is None else round(qty * price, 4)
+
+    # Shipped the moment either piece of evidence exists; planned until then.
+    fields["shipment_status"] = (
+        STATUS_SHIPPED
+        if any(fields.get(k) not in (None, "") for k in SHIPPED_EVIDENCE)
+        else STATUS_PLANNED
+    )
 
     for key, (left_key, right_key) in DERIVED_FORMULAS.items():
         left, right = fields.get(left_key), fields.get(right_key)

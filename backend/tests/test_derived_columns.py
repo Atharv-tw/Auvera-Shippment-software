@@ -28,7 +28,17 @@ def test_every_derived_column_is_declared():
         "buyer_payment_due_date",
         "buyer_total_value",
         "vendor_total_value",
+        "shipment_status",
     }
+
+
+def test_shipment_status_follows_the_shipment_evidence():
+    """Two values, and neither is typed: a BL/AWB/FCR number or an actual
+    sailing date means the goods have left, anything else is still planned."""
+    assert tm.compute_derived({"bl_no": "177116010974"})["shipment_status"] == "Shipped"
+    assert tm.compute_derived({"etd": "2026-08-29"})["shipment_status"] == "Shipped"
+    assert tm.compute_derived({"booking_no": "INV"})["shipment_status"] == "Planned"
+    assert tm.compute_derived({"etd": None, "bl_no": ""})["shipment_status"] == "Planned"
 
 
 @pytest.mark.parametrize(
