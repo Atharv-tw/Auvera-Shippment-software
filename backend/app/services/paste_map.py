@@ -83,19 +83,87 @@ def normalize_header(header: str) -> str:
     return _WS_RE.sub(" ", text).strip()
 
 
+# A header cell in a space-aligned table: a run of text with no two spaces in
+# it, so "PO No." stays one column while "Colour   Mode" is two.
+_HEADER_CELL_RE = re.compile(r"[^ ]+(?: [^ ]+)*")
+
+
+def _column_bounds(header_line: str) -> list[tuple[int, int]]:
+    """Character span of each column, taken from the header line."""
+    starts = [m.start() for m in _HEADER_CELL_RE.finditer(header_line)]
+    if len(starts) < 2:
+        return []
+    ends = starts[1:] + [len(header_line)]
+    return list(zip(starts, ends))
+
+
+def _cut(line: str, at: int, floor: int) -> int:
+    """Move a column boundary off the middle of a word.
+
+    Data rarely lines up with its header to the character: a right-aligned
+    number reaches back before its header starts, a long value runs past where
+    the next one begins. Whichever column a word *starts* in is the column it
+    belongs to, so the boundary moves to that word's far edge rather than
+    slicing it in half.
+    """
+    if at <= 0 or at >= len(line) or line[at] == " " or line[at - 1] == " ":
+        return at
+    start = at
+    while start > 0 and line[start - 1] != " ":
+        start -= 1
+    if start <= floor:  # the word began in the left column - keep it there
+        end = at
+        while end < len(line) and line[end] != " ":
+            end += 1
+        return end
+    return start
+
+
+def _split_fixed_width(lines: list[str]) -> list[list[str]]:
+    """Slice a space-aligned table at its header's column positions.
+
+    Splitting each line on runs of two-or-more spaces cannot work here: an
+    empty cell has nothing to split on, so the row comes back short and every
+    value after the gap silently shifts a column left - a BL number landing in
+    Mode. Cutting at fixed positions keeps an empty cell empty and every other
+    value under its own header.
+    """
+    header_index = next((i for i, line in enumerate(lines) if line.strip()), None)
+    if header_index is None:
+        return [[line.strip()] for line in lines]
+    bounds = _column_bounds(lines[header_index])
+    if not bounds:  # single-column paste; nothing to align
+        return [re.split(r" {2,}", line.strip()) for line in lines]
+
+    rows: list[list[str]] = []
+    for i, line in enumerate(lines):
+        if i < header_index:
+            rows.append(re.split(r" {2,}", line.strip()))
+            continue
+        cells: list[str] = []
+        left = 0
+        for n, (_start, end) in enumerate(bounds):
+            right = len(line) if n == len(bounds) - 1 else _cut(line, end, left)
+            cells.append(line[left:right].strip())
+            left = right
+        rows.append(cells)
+    return rows
+
+
 def parse_tsv(text: str) -> list[list[str]]:
     """Split a paste into rows of cells.
 
-    Tab-separated is what Excel and Outlook tables put on the clipboard; a
-    paste with no tabs at all falls back to two-or-more spaces so plain-text
-    e-mail tables still work.
+    Tab-separated is what Excel and Outlook tables put on the clipboard, and it
+    marks the empty cells for us. A paste with no tabs at all is a plain-text
+    table held together by alignment, so it is sliced at the header's own
+    column positions instead of on runs of spaces.
     """
     lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     while lines and lines[-1].strip() == "":
         lines.pop()
     if any("\t" in line for line in lines):
         return [line.split("\t") for line in lines]
-    return [re.split(r" {2,}", line.strip()) for line in lines]
+    return _split_fixed_width(lines)
 
 
 def extract_table(rows: list[list[str]]) -> tuple[list[str], list[tuple[int, dict]]]:
