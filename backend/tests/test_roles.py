@@ -104,6 +104,23 @@ def test_ceo_edits_everything_including_price(client):
 
 
 
+def test_payment_terms_are_commercial_not_the_shipping_desk(client):
+    """Agreed when the order is placed, so the merchant/CEO/admin set them."""
+    admin, ceo, shipping, merchant, rid = _bootstrap(client)
+    terms = {"fields": {"factory_payment_terms_status": "100%TT 30 DAYS"}}
+
+    assert client.patch(f"/api/tracker/{rid}", json=terms,
+                        headers=_auth(shipping)).status_code == 403
+    assert client.patch(f"/api/tracker/{rid}", json={
+        "fields": {"buyer_payment_terms_status": "100%TT"}},
+        headers=_auth(shipping)).status_code == 403
+
+    for token in (ceo, admin):
+        r = client.patch(f"/api/tracker/{rid}", json=terms, headers=_auth(token))
+        assert r.status_code == 200, r.text
+        assert r.json()["data"]["factory_payment_terms_status"] == "100%TT 30 DAYS"
+
+
 def test_shipment_status_follows_bl_and_sailing_date(client):
     """Two values, neither typed: evidence of sailing makes a line Shipped."""
     admin, _, _, _, rid = _bootstrap(client)

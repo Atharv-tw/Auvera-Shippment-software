@@ -108,6 +108,14 @@ PRICE_KEYS: frozenset[str] = frozenset({
 # silently orphan the row from future re-imports - CEO/admin only.
 IDENTITY_KEYS: frozenset[str] = frozenset({"buyer_po", "style_no", "colour"})
 
+# What we pay the factory on, and what the buyer pays us on. These are agreed
+# commercially, not observed in transit, so they belong to whoever negotiated
+# them - merchant, CEO, admin. The shipping manager works the shipment, not the
+# contract, and does not set them.
+PAYMENT_TERMS_KEYS: frozenset[str] = frozenset({
+    "factory_payment_terms_status", "buyer_payment_terms_status",
+})
+
 # Derived, never hand-edited by anyone. Each is a formula over other columns,
 # and each goes **empty** when any of its inputs is missing - the sheet cannot
 # do that, so Excel leaves artifacts like -46221 where a blank date was treated

@@ -97,7 +97,9 @@ export interface TrackerColumn {
   is_price: boolean;
   /** PO#/Style/Colour - editing re-keys the row, so CEO/admin only. */
   is_identity: boolean;
-  /** Computed (price difference) - read-only for everyone. */
+  /** Factory / Buyer payment terms - commercial, so merchant/CEO/admin only. */
+  is_payment_terms: boolean;
+  /** Computed (price difference, shipment status) - read-only for everyone. */
   is_derived: boolean;
   /** For a derived column, the two labels it is calculated from. */
   derived_from?: string[];
@@ -202,6 +204,7 @@ export interface PoFieldSpec {
   editable: boolean;
   is_price: boolean;
   is_identity: boolean;
+  is_payment_terms: boolean;
   is_derived: boolean;
   /** For a derived field, the two labels it is calculated from. */
   derived_from?: string[];

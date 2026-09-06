@@ -85,7 +85,7 @@ export const canUseExcelView = (r: Role) =>
 
 type Gated = Pick<
   TrackerColumn | PoFieldSpec,
-  "editable" | "is_price" | "is_identity" | "is_derived"
+  "editable" | "is_price" | "is_identity" | "is_payment_terms" | "is_derived"
 > & { derived_from?: string[] };
 
 /** Why a field is locked, for the tooltip on a disabled input — `null` when it
@@ -112,6 +112,8 @@ export const lockReason = (field: Gated): string | null => {
     return "Price fields can only be changed by the CEO or an admin";
   if (field.is_identity)
     return "PO, style and colour identify the row — CEO or admin only";
+  if (field.is_payment_terms)
+    return "Payment terms are commercial — merchant, CEO or admin only";
   return "Read-only for your role";
 };
 

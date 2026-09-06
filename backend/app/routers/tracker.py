@@ -42,6 +42,7 @@ def columns(user: User = Depends(require_tracker_view)):
             editable=c["key"] in editable,
             is_price=c["key"] in tm.PRICE_KEYS,
             is_identity=c["key"] in tm.IDENTITY_KEYS,
+            is_payment_terms=c["key"] in tm.PAYMENT_TERMS_KEYS,
             is_derived=c["key"] in tm.DERIVED_KEYS,
             derived_from=tm.derived_from_labels(c["key"]),
             aliases=paste_map.ALIASES.get(c["key"], []),
