@@ -392,6 +392,41 @@ def test_paste_cannot_smuggle_in_a_price(client, loaded):
     assert data["buyer_net_price"] == 5.45  # untouched
 
 
+
+# --- pasting a plain-text table with gaps ---------------------------------------
+# An e-mail table is held together by alignment, not tabs. Splitting it on runs
+# of spaces loses every empty cell, which shifts the rest of the row a column
+# left and writes values into the wrong tracker fields.
+
+PASTE_ALIGNED_WITH_GAPS = (
+    "PO No.    Style       Colour   Mode   Forwarder   BL No.        Vessel\n"
+    "D652      17088908    Black                       177116010974  KLEVEN\n"
+)
+
+
+def test_paste_keeps_columns_aligned_across_empty_cells(client, loaded):
+    users, _ = loaded
+    r = client.post("/api/paste/preview", json={"text": PASTE_ALIGNED_WITH_GAPS},
+                    headers=_auth(users["shipping"]))
+    assert r.status_code == 200, r.text
+    mapped = r.json()["rows"][0]["mapped"]
+    assert mapped["bl_no"] == "177116010974"   # not shifted into Mode
+    assert mapped["vessel"] == "KLEVEN"        # not shifted into Forwarder
+    assert "mode" not in mapped and "forwarder" not in mapped
+
+
+def test_paste_applies_an_aligned_table_with_gaps(client, loaded):
+    users, _ = loaded
+    r = client.post("/api/paste/apply", json={"text": PASTE_ALIGNED_WITH_GAPS},
+                    headers=_auth(users["shipping"]))
+    assert r.status_code == 200, r.text
+    assert r.json()["updated_rows"] == 1
+
+    data = _rows(client, users["admin"])[("17088908", "Black")]["data"]
+    assert data["bl_no"] == "177116010974"
+    assert data["vessel"] == "KLEVEN"
+    assert data.get("mode") is None
+
 # --- reports -------------------------------------------------------------------
 
 def test_reports_are_ceo_and_admin_only(client, loaded):

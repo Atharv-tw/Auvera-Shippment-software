@@ -125,6 +125,7 @@ class TrackerColumnOut(BaseModel):
     # nothing infers editability from these.
     is_price: bool = False
     is_identity: bool = False
+    is_payment_terms: bool = False
     is_derived: bool = False
     # for a derived column, the labels it is calculated from - so the UI can say
     # which fields to change instead of just refusing the edit
@@ -300,6 +301,7 @@ class PoFieldSpec(BaseModel):
     editable: bool = False
     is_price: bool = False
     is_identity: bool = False
+    is_payment_terms: bool = False
     is_derived: bool = False
     derived_from: list[str] = []
 

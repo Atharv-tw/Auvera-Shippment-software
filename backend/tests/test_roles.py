@@ -103,6 +103,48 @@ def test_ceo_edits_everything_including_price(client):
     assert float(r.json()["data"]["buyer_net_price"]) == 12.5
 
 
+
+def test_payment_terms_are_commercial_not_the_shipping_desk(client):
+    """Agreed when the order is placed, so the merchant/CEO/admin set them."""
+    admin, ceo, shipping, merchant, rid = _bootstrap(client)
+    terms = {"fields": {"factory_payment_terms_status": "100%TT 30 DAYS"}}
+
+    assert client.patch(f"/api/tracker/{rid}", json=terms,
+                        headers=_auth(shipping)).status_code == 403
+    assert client.patch(f"/api/tracker/{rid}", json={
+        "fields": {"buyer_payment_terms_status": "100%TT"}},
+        headers=_auth(shipping)).status_code == 403
+
+    for token in (ceo, admin):
+        r = client.patch(f"/api/tracker/{rid}", json=terms, headers=_auth(token))
+        assert r.status_code == 200, r.text
+        assert r.json()["data"]["factory_payment_terms_status"] == "100%TT 30 DAYS"
+
+
+def test_shipment_status_follows_bl_and_sailing_date(client):
+    """Two values, neither typed: evidence of sailing makes a line Shipped."""
+    admin, _, _, _, rid = _bootstrap(client)
+    row = client.get(f"/api/tracker/{rid}", headers=_auth(admin)).json()
+    assert row["data"]["shipment_status"] == "Planned"
+
+    # nobody hand-edits it, not even an admin
+    assert client.patch(f"/api/tracker/{rid}", json={
+        "fields": {"shipment_status": "Shipped"}},
+        headers=_auth(admin)).status_code == 403
+
+    r = client.patch(f"/api/tracker/{rid}", json={"fields": {"bl_no": "177116010974"}},
+                     headers=_auth(admin))
+    assert r.json()["data"]["shipment_status"] == "Shipped"
+
+    # clearing the evidence puts it back
+    r = client.patch(f"/api/tracker/{rid}", json={"fields": {"bl_no": None}},
+                     headers=_auth(admin))
+    assert r.json()["data"]["shipment_status"] == "Planned"
+
+    r = client.patch(f"/api/tracker/{rid}", json={"fields": {"etd": "2026-08-29"}},
+                     headers=_auth(admin))
+    assert r.json()["data"]["shipment_status"] == "Shipped"
+
 def test_price_difference_is_never_hand_edited(client):
     admin, _, _, _, rid = _bootstrap(client)
     r = client.patch(f"/api/tracker/{rid}", json={"fields": {"price_difference": 99}},

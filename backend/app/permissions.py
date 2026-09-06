@@ -6,7 +6,8 @@ Roles
 - ``ceo``              - edits everything including prices, sees the audit trail,
                          may upload order sheets.
 - ``shipping_manager`` - owns the Shipment Tracker and edits it freely, except
-                         the price columns and the row's PO/Style/Colour identity.
+                         the price columns, the row's PO/Style/Colour identity,
+                         and the two payment-terms columns.
 - ``merchant``         - uploads order sheets, assigns each PO its season, and
                          works purchase orders in the per-PO view (same price and
                          identity limits). No Shipment Tracker: it is the shipping
@@ -15,7 +16,8 @@ Roles
 ``vendor`` is a legacy role kept as a read-only viewer (orders only).
 
 The editing model is deliberately flat: everyone who can edit, edits everything,
-*except* the money columns, which are the CEO's and admin's alone. Uploads are
+*except* the money columns, which are the CEO's and admin's alone, and the
+payment terms, which belong to whoever negotiates them. Uploads are
 not affected - a sheet that carries prices still writes them for whoever uploads
 it, because that is the sheet's own figure and not a hand edit.
 """
@@ -74,6 +76,11 @@ def can_edit_identity(role: str) -> bool:
     return role in (ADMIN, CEO)
 
 
+def can_edit_payment_terms(role: str) -> bool:
+    """Factory / Buyer Payment Terms - commercial, so not the shipping desk's."""
+    return role in (ADMIN, CEO, MERCHANT)
+
+
 def can_edit_tracker(role: str) -> bool:
     return role in (ADMIN, CEO, SHIPPING_MANAGER)
 
@@ -129,6 +136,8 @@ def editable_tracker_keys(role: str) -> frozenset[str]:
         keys -= tm.PRICE_KEYS
     if not can_edit_identity(role):
         keys -= tm.IDENTITY_KEYS
+    if not can_edit_payment_terms(role):
+        keys -= tm.PAYMENT_TERMS_KEYS
     return frozenset(keys)
 
 

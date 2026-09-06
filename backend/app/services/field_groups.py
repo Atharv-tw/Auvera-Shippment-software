@@ -89,6 +89,7 @@ def tracker_field_specs() -> list[dict]:
             "origin": "tracker",
             "is_price": c["key"] in tm.PRICE_KEYS,
             "is_identity": c["key"] in tm.IDENTITY_KEYS,
+            "is_payment_terms": c["key"] in tm.PAYMENT_TERMS_KEYS,
             "is_derived": c["key"] in tm.DERIVED_KEYS,
             "derived_from": tm.derived_from_labels(c["key"]),
         }
