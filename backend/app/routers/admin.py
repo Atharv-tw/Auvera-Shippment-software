@@ -15,6 +15,7 @@ from app import permissions
 from app.database import get_db
 from app.dependencies import require_admin
 from app.models import User
+from app.services import sessions as session_service
 from app.schemas import UserAdminOut, UserRoleUpdate
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -85,5 +86,16 @@ def update_user(
     if body.is_active is not None:
         user.is_active = body.is_active
     db.commit()
+
+    # Disabling ends their sessions outright, so the refresh token cannot bring
+    # the account back either.
+    #
+    # A role *change* deliberately does not: get_current_user reads the role off
+    # the user row on every request, never off the token, so a new role already
+    # takes effect on the next call. Revoking as well would only sign people out
+    # at the moment they are approved off the waitlist.
+    if being_disabled:
+        session_service.revoke_all(db, user, reason="admin", event="admin_revoke")
+
     db.refresh(user)
     return user

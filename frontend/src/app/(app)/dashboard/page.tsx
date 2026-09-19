@@ -10,7 +10,7 @@ import {
   canViewTracker,
   canReadTrackerRows,
   canUpload,
-  canEditIdentity,
+  canCreateTrackerRow,
   canViewPos,
 } from "@/lib/permissions";
 import { poLinePath } from "@/lib/routes";
@@ -113,7 +113,7 @@ export default function DashboardPage() {
               <Button>Upload sheets</Button>
             </Link>
           )}
-          {user && canEditIdentity(user.role) && (
+          {user && canCreateTrackerRow(user.role) && (
             <Link href="/manual">
               <Button variant="secondary">New tracker row</Button>
             </Link>

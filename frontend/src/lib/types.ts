@@ -19,6 +19,16 @@ export interface UserAdmin extends User {
   created_at: string;
 }
 
+/** One line of the sign-in feed, for the CEO and admins. */
+export interface AuthEvent {
+  id: number;
+  event: "login" | "logout" | "logout_all" | "admin_revoke";
+  user_id: number | null;
+  user_email: string | null;
+  user_name: string | null;
+  created_at: string;
+}
+
 export interface AuditEntry {
   id: number;
   field_key: string;
@@ -33,7 +43,11 @@ export interface AuditEntry {
 
 export interface TokenResponse {
   access_token: string;
+  /** Absent only on the legacy pre-session path. */
+  refresh_token?: string | null;
   token_type: string;
+  /** Access-token lifetime in seconds, so nothing has to decode the JWT. */
+  expires_in?: number;
   user: User;
 }
 

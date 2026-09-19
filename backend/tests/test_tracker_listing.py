@@ -15,7 +15,7 @@ def _auth(token):
 
 def _admin(client):
     r = client.post("/api/auth/register", json={
-        "email": "admin@example.com", "password": "secret123", "name": "admin", "role": "admin",
+        "email": "admin@example.com", "password": "secret123456", "name": "admin", "role": "admin",
     })
     assert r.status_code == 201, r.text
     token = r.json()["access_token"]

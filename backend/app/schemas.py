@@ -3,20 +3,51 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 # --- auth ----------------------------------------------------------------------
 
+# A short list on purpose: it catches the handful of passwords people actually
+# reach for, without pretending to be a breach corpus.
+_COMMON_PASSWORDS = frozenset({
+    "123456789012", "password1234", "qwertyuiop12", "administrator",
+    "passwordpassword", "letmeinletmein", "welcome123456", "iloveyou1234",
+    "auverastudio", "shipping1234", "changeme1234", "aaaaaaaaaaaa",
+})
+
+
+def _check_password(value: str) -> str:
+    if value.strip().lower() in _COMMON_PASSWORDS:
+        raise ValueError("That password is too easy to guess - please pick another.")
+    return value
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=6)
+    # 12, not 6: with no lockout a 6-character password was the weakest link in
+    # the system. Existing passwords are not re-checked on sign-in, so nobody is
+    # locked out by this changing.
+    password: str = Field(min_length=12)
     name: str
+
+    @field_validator("password")
+    @classmethod
+    def password_not_common(cls, v: str) -> str:
+        return _check_password(v)
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: str | None = None
 
 
 class UserOut(BaseModel):
@@ -29,8 +60,23 @@ class UserOut(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
+    # Absent only on the legacy pre-session path.
+    refresh_token: str | None = None
     token_type: str = "bearer"
+    # Seconds, so the client never has to decode the JWT to know.
+    expires_in: int = 0
     user: UserOut
+
+
+class AuthEventOut(BaseModel):
+    """One line of the sign-in feed."""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    event: str
+    user_id: int | None = None
+    user_email: str | None = None
+    user_name: str | None = None
+    created_at: datetime
 
 
 # --- admin: user management ----------------------------------------------------

@@ -33,6 +33,34 @@ on it by season, customer and vendor.
 - **Reports** by season / customer / vendor with charts, margins, shipping delays and `.xlsx` export.
 - Manual tracker-row entry, and a browsable database view at `/admin` for admins.
 
+## Who can get in
+
+Accounts are gated three ways, all enforced server-side:
+
+- **Email domain.** Set `ALLOWED_EMAIL_DOMAINS=auverastudio.com` and only those
+  addresses may register *or* sign in — turning it on shuts out accounts that
+  already exist, not just new ones. Exact domain match, so subdomains need
+  listing separately. `ADMIN_EMAIL` is always allowed through, so a typo in the
+  list cannot lock out the only administrator. Empty (the default) means no
+  restriction, which is what local development and the tests run with.
+- **Admin approval.** Registering grants nothing: new accounts land on the
+  waitlist with no role until an admin assigns one.
+- **Passwords** are at least 12 characters, and a handful of obvious ones are
+  refused. Existing passwords are not re-checked at sign-in, so raising the rule
+  locks nobody out. Five failed attempts holds the account shut for 15 minutes.
+
+### Sessions
+
+Signing in opens a **session**: a short-lived access token (15 minutes, renewed
+silently by the frontend) plus a refresh token that the server can revoke. So
+signing out actually ends the session rather than only clearing the browser, and
+*Sign out everywhere* ends every session that account has open. Disabling an
+account in the admin panel ends its sessions immediately.
+
+CEO and admin see **Sign-in Activity** in the sidebar: who signed in and out and
+when. It records sign-ins and deliberate sign-outs only — not failed attempts,
+not IP addresses, and a session that merely expired is not an event.
+
 ## Roles
 
 Everyone who can edit, edits everything — *except* the price columns, which are the CEO's and
@@ -45,6 +73,12 @@ figure, not a hand edit.
 | **ceo** | ✓ | ✓ | ✓ | ✓ | | ✓ | ✓ |
 | **shipping_manager** | ✓ | ✓ | | | ✓ | | |
 | **merchant** | | ✓ | | ✓ | | ✓ | |
+
+Merchants can also **create** a tracker row by hand (*Manual PO Line*), which
+sets its Buyer PO / Style / Colour. Creating is a separate right from editing:
+having set that identity once, a merchant can never change it again, and still
+cannot browse or edit the rest of the tracker. Shipping managers are the mirror
+image — they edit rows but do not originate them.
 
 A row's Buyer PO / Style / Colour is CEO+admin only too — changing it re-keys the row and would
 break re-import matching. Every field change is recorded in a per-field audit trail, whether it

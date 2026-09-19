@@ -65,6 +65,14 @@ export const canAssignSeason = (r: Role) =>
 export const canUpload = (r: Role) =>
   r === "admin" || r === "merchant" || r === "ceo";
 
+/** Who may originate a tracker row.
+ *
+ * Merchants are here but not in `canEditIdentity`: they set a row's
+ * PO/Style/Colour once, when they create it, and can never change it after.
+ */
+export const canCreateTrackerRow = (r: Role) =>
+  r === "admin" || r === "ceo" || r === "merchant";
+
 export const canViewAudit = (r: Role) => r === "admin" || r === "ceo";
 
 export const canViewReports = (r: Role) => r === "admin" || r === "ceo";

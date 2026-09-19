@@ -33,15 +33,21 @@ def _forbid(user: User, submitted, allowed, labeller) -> None:
 
 def apply_tracker_fields(
     db: Session, row: TrackerRow, fields: dict, user: User, action: str,
+    allowed: frozenset[str] | None = None,
 ) -> int:
     """Write tracker columns onto a row. Returns how many fields changed.
 
     Raises 403 if the caller submits any valid tracker column they are not
     allowed to edit. Unknown keys are ignored.
+
+    ``allowed`` overrides the role's usual edit rights, for the one caller that
+    needs a different answer: creating a row may set its identity, editing one
+    may not.
     """
     valid = set(tm.TRACKER_KEYS)
     submitted = {k for k in fields if k in valid}
-    allowed = permissions.editable_tracker_keys(user.role)
+    if allowed is None:
+        allowed = permissions.editable_tracker_keys(user.role)
     _forbid(user, submitted, allowed, lambda k: tm.LABEL_BY_KEY.get(k, k))
 
     data = dict(row.data or {})

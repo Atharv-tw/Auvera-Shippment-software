@@ -182,13 +182,20 @@ def test_merchant_reads_tracker_rows_but_cannot_touch_them(client, loaded):
     assert rows.status_code == 200, rows.text
     row_id = rows.json()[0]["id"]
 
-    # read-only: every write, the export and the column list stay shut
+    # existing rows stay read-only, and the export stays shut
     assert client.patch(f"/api/tracker/{row_id}", json={"fields": {"lot_no": "9"}},
                         headers=m).status_code == 403
     assert client.patch("/api/tracker/lines", json={"updates": {}}, headers=m).status_code == 403
-    assert client.post("/api/tracker", json={"fields": {}}, headers=m).status_code == 403
     assert client.get("/api/tracker/export", headers=m).status_code == 403
-    assert client.get("/api/tracker/columns", headers=m).status_code == 403
+
+    # ...but a merchant may now originate a row, and needs the column list to do
+    # it. Creating is a separate right from editing: see test_auth_sessions.
+    assert client.get("/api/tracker/columns", headers=m).status_code == 200
+    assert client.post(
+        "/api/tracker",
+        json={"fields": {"buyer_po": "D999", "style_no": "S1", "colour": "Red"}},
+        headers=m,
+    ).status_code == 201
 
 
 def test_merchant_edits_a_po_but_not_its_prices(client, loaded):

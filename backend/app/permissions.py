@@ -71,6 +71,17 @@ def can_edit_prices(role: str) -> bool:
     return role in (ADMIN, CEO)
 
 
+def can_create_tracker_row(role: str) -> bool:
+    """Who may bring a brand-new tracker row into existence.
+
+    Merchants are here but not in ``can_edit_identity``: they may *set* a row's
+    PO/Style/Colour once, when they create it, and may never change it
+    afterwards - re-keying an existing row breaks re-import matching.
+    Shipping edits rows but does not originate them.
+    """
+    return role in (ADMIN, CEO, MERCHANT)
+
+
 def can_edit_identity(role: str) -> bool:
     """Buyer PO# / Style / Colour - changing these re-keys the row."""
     return role in (ADMIN, CEO)
@@ -139,6 +150,13 @@ def editable_tracker_keys(role: str) -> frozenset[str]:
     if not can_edit_payment_terms(role):
         keys -= tm.PAYMENT_TERMS_KEYS
     return frozenset(keys)
+
+
+def creatable_tracker_keys(role: str) -> frozenset[str]:
+    """Editable keys plus identity, which is settable only at creation."""
+    if not can_create_tracker_row(role):
+        return frozenset()
+    return frozenset(editable_tracker_keys(role) | tm.IDENTITY_KEYS)
 
 
 def editable_line_keys(role: str) -> frozenset[str]:

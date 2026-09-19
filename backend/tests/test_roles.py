@@ -44,7 +44,7 @@ def test_new_users_land_on_the_waitlist_with_no_role(client):
     _register(client, "admin@example.com")  # first user -> admin
     # a role in the body is ignored: registration never grants access now
     r = client.post("/api/auth/register", json={
-        "email": "sneaky@example.com", "password": "secret123", "name": "x", "role": "admin",
+        "email": "sneaky@example.com", "password": "secret123456", "name": "x", "role": "admin",
     })
     assert r.status_code == 201, r.text
     assert r.json()["user"]["role"] == "pending"
@@ -54,8 +54,9 @@ def test_merchant_reads_tracker_rows_but_gets_no_tracker_page(client):
     _, _, _, merchant, rid = _bootstrap(client)
     # the dashboard's Shipment Tracker panel reads the rows...
     assert client.get("/api/tracker", headers=_auth(merchant)).status_code == 200
-    # ...but the tracker page's own endpoints, and every write, stay shut
-    assert client.get("/api/tracker/columns", headers=_auth(merchant)).status_code == 403
+    # ...the column list opens too, because the manual-entry form needs it
+    assert client.get("/api/tracker/columns", headers=_auth(merchant)).status_code == 200
+    # ...but every write to an existing row stays shut
     assert client.patch(f"/api/tracker/{rid}", json={"fields": {"container_no": "C1"}},
                         headers=_auth(merchant)).status_code == 403
     # ...and order details were always fine

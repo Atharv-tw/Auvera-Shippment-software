@@ -43,6 +43,24 @@ def _base_revision(cfg: Config) -> str:
     return bases[0]
 
 
+def _baseline_tables(cfg: Config) -> set[str]:
+    """The tables the baseline migration creates.
+
+    Derived by running the baseline into a throwaway database rather than
+    hard-coded, so it cannot rot as migrations are added.
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        url = f"sqlite:///{Path(tmp) / 'baseline.db'}"
+        command.upgrade(alembic_config(url), _base_revision(cfg))
+        engine = create_engine(url)
+        try:
+            return set(inspect(engine).get_table_names()) - {VERSION_TABLE}
+        finally:
+            engine.dispose()
+
+
 def _adopt_pre_alembic_database(cfg: Config, database_url: str | None) -> None:
     """Bring a database that predates Alembic under version control.
 
@@ -73,14 +91,14 @@ def _adopt_pre_alembic_database(cfg: Config, database_url: str | None) -> None:
     if not existing:
         return  # genuinely empty; the migrations will build it
 
-    # models must be imported before the metadata is read, or it is empty and
-    # every check below passes vacuously - which would stamp any database at all
-    import app.models  # noqa: F401
-    from app.database import Base
-
-    expected = {t.name for t in Base.metadata.sorted_tables}
+    # Compared against what the BASELINE creates, not against today's models.
+    # A pre-Alembic database has the tables create_all made at the time it was
+    # last deployed - it cannot have tables that only a later migration adds, so
+    # measuring it against the current models would condemn every legacy
+    # database the moment any migration introduces a table.
+    expected = _baseline_tables(cfg)
     if not expected:
-        raise RuntimeError("no tables registered on Base.metadata; models did not import")
+        raise RuntimeError("the baseline migration created no tables; cannot identify this schema")
     missing = expected - existing
     if missing:
         raise RuntimeError(

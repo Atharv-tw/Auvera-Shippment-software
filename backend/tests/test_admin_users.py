@@ -17,7 +17,7 @@ def test_first_user_is_admin_the_rest_are_pending(client):
     assert _me(client, admin)["role"] == "admin"
 
     r = client.post("/api/auth/register", json={
-        "email": "newbie@example.com", "password": "secret123", "name": "New",
+        "email": "newbie@example.com", "password": "secret123456", "name": "New",
     })
     assert r.status_code == 201, r.text
     assert r.json()["user"]["role"] == "pending"

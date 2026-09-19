@@ -11,21 +11,26 @@ role gets in.
 
 from __future__ import annotations
 
+import logging
+
 from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
 from sqlalchemy.orm import Session
 from starlette.requests import Request
 
+from app import email_policy
 from app.config import get_settings
 from app.database import SessionLocal, engine
 from app.models import (
     AuditLog,
+    AuthEvent,
     Customer,
     Order,
     OrderLine,
     POSeason,
     TrackerRow,
     User,
+    UserSession,
     Vendor,
     VendorOrder,
     VendorOrderLine,
@@ -33,6 +38,7 @@ from app.models import (
 from app.security import hash_password, verify_password  # noqa: F401  (hash re-exported for parity)
 
 settings = get_settings()
+log = logging.getLogger("app")
 
 
 class AdminAuth(AuthenticationBackend):
@@ -44,6 +50,8 @@ class AdminAuth(AuthenticationBackend):
         password = str(form.get("password", ""))
         db: Session = SessionLocal()
         try:
+            if not email_policy.is_allowed_login_email(email):
+                return False
             user = db.query(User).filter(User.email == email).first()
             if user is None or not user.is_active or user.role != "admin":
                 return False
@@ -171,11 +179,50 @@ class AuditLogAdmin(_Base, model=AuditLog):
     column_default_sort = ("id", True)
 
 
+class UserSessionAdmin(_Base, model=UserSession):
+    name_plural = "Sessions"
+    icon = "fa-solid fa-key"
+    column_list = [
+        UserSession.id, UserSession.user_id, UserSession.created_at,
+        UserSession.last_used_at, UserSession.expires_at,
+        UserSession.revoked_at, UserSession.revoked_reason,
+    ]
+    column_default_sort = ("id", True)
+
+
+class AuthEventAdmin(_Base, model=AuthEvent):
+    name_plural = "Sign-in activity"
+    icon = "fa-solid fa-right-to-bracket"
+    column_list = [
+        AuthEvent.id, AuthEvent.created_at, AuthEvent.event,
+        AuthEvent.user_name, AuthEvent.user_email, AuthEvent.session_id,
+    ]
+    column_searchable_list = [AuthEvent.user_email, AuthEvent.user_name]
+    column_default_sort = ("id", True)
+
+
 _VIEWS = (
-    UserAdmin, CustomerAdmin, VendorAdmin,
+    UserAdmin, UserSessionAdmin, AuthEventAdmin, CustomerAdmin, VendorAdmin,
     OrderAdmin, OrderLineAdmin, VendorOrderAdmin, VendorOrderLineAdmin,
     TrackerRowAdmin, POSeasonAdmin, AuditLogAdmin,
 )
+
+
+def _admin_secret() -> str:
+    """The cookie key for this GUI.
+
+    Sharing ``jwt_secret`` means one leaked value opens both the API and this
+    database browser. Falling back keeps an existing deployment working the day
+    this ships; the warning says what to set.
+    """
+    if settings.admin_session_secret:
+        return settings.admin_session_secret
+    log.warning(
+        "ADMIN_SESSION_SECRET is unset - the /admin browser is signing its "
+        "cookie with JWT_SECRET. Set a separate value so one leak does not "
+        "open both."
+    )
+    return settings.jwt_secret
 
 
 def mount_admin(app) -> Admin:
@@ -183,7 +230,7 @@ def mount_admin(app) -> Admin:
         app,
         engine,
         title="Shipping Z data",
-        authentication_backend=AdminAuth(secret_key=settings.jwt_secret),
+        authentication_backend=AdminAuth(secret_key=_admin_secret()),
     )
     for view in _VIEWS:
         admin.add_view(view)

@@ -3,7 +3,7 @@ from .conftest import CUSTOMER_FILES, SAMPLES, VENDOR_FILES, auth_header, regist
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
-def _register(client, email, role=None, admin=None, password="secret123"):
+def _register(client, email, role=None, admin=None, password="secret123456"):
     return register(client, email, role=role, admin=admin, password=password)
 
 

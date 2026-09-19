@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { canEditIdentity } from "@/lib/permissions";
+import { canCreateTrackerRow } from "@/lib/permissions";
 import { seasonForValue, seasonLabel } from "@/lib/seasons";
 import { poLinePath } from "@/lib/routes";
 import { Badge, Button, Card, Select, Spinner, ErrorNote } from "@/components/ui";
@@ -33,13 +33,13 @@ export default function ManualEntryPage() {
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const allowed = !!user && canEditIdentity(user.role);
+  const allowed = !!user && canCreateTrackerRow(user.role);
 
   const buyerPo = (fields.buyer_po ?? "").trim();
 
   const columns = useQuery({
     queryKey: ["tracker-columns"],
-    queryFn: () => api<TrackerColumn[]>("/api/tracker/columns"),
+    queryFn: () => api<TrackerColumn[]>("/api/tracker/columns?mode=create"),
     staleTime: Infinity,
     enabled: allowed,
   });
