@@ -36,6 +36,17 @@ class User(Base, TimestampMixin):
     role: Mapped[str] = mapped_column(String(20), default="merchant")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    # Brute-force brake. Deliberately NOT in the sign-in activity feed: the
+    # feed records logins and logouts, and a wall of failed attempts would bury
+    # them. These two are state, not history.
+    # server_default as well as default: the column arrives on a table that
+    # already has rows, and NOT NULL with nothing to fill them fails the
+    # migration on Postgres.
+    failed_login_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime)
+
 
 # --- shared line-item columns --------------------------------------------------
 
@@ -359,6 +370,56 @@ class AuditLog(Base):
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     user_name: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class UserSession(Base):
+    """One live sign-in: the revocation state behind a refresh token.
+
+    Mutable — it is stamped on use and revoked on sign-out. The *history* of
+    who signed in and out lives in ``AuthEvent`` instead, so that this table
+    can be pruned of dead rows without erasing the record.
+    """
+
+    __tablename__ = "user_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # sha256 hex of the refresh secret — the secret itself is shown once, to
+    # its owner, and never stored.
+    refresh_hash: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_used_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # logout | logout_all | admin
+    revoked_reason: Mapped[str | None] = mapped_column(String(20))
+
+    user: Mapped["User"] = relationship()
+
+
+class AuthEvent(Base):
+    """Append-only sign-in history, read by the CEO and admins.
+
+    Records logins and deliberate sign-outs only. A session that merely expired
+    is not an event — the activity view works that out from the session's own
+    ``expires_at`` — and failed attempts are counted on the user row rather
+    than listed here.
+    """
+
+    __tablename__ = "auth_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Nullable + denormalised name/email, like AuditLog: the record has to
+    # outlive the account it describes.
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+    user_email: Mapped[str | None] = mapped_column(String(255))
+    user_name: Mapped[str | None] = mapped_column(String(255))
+    # login | logout | logout_all | admin_revoke
+    event: Mapped[str] = mapped_column(String(20), index=True)
+    # Deliberately NOT a ForeignKey. Pruning spent sessions must never cascade
+    # into the history, which is the whole reason these are two tables.
+    session_id: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 
 # --- customers ----------------------------------------------------------------

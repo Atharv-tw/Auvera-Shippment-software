@@ -57,7 +57,7 @@ def auth_header(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-def register(client, email, role=None, admin=None, password="secret123"):
+def register(client, email, role=None, admin=None, password="secret123456"):
     """Register a user and return their bearer token.
 
     Registration no longer grants a role: the first user becomes ``admin`` and

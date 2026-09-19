@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import or_
@@ -9,6 +10,7 @@ from app.database import get_db
 from app.dependencies import (
     require_admin,
     require_audit,
+    require_tracker_create,
     require_tracker_read,
     require_tracker_view,
 )
@@ -32,10 +34,23 @@ _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
 @router.get("/columns", response_model=list[TrackerColumnOut])
-def columns(user: User = Depends(require_tracker_view)):
+def columns(
+    mode: Literal["edit", "create"] = "edit",
+    user: User = Depends(require_tracker_read),
+):
     # Which columns this user may write is settled here and sent with the
     # column list, so the grid never has to work it out a second time.
-    editable = permissions.editable_tracker_keys(user.role)
+    #
+    # The answer differs by mode, and has to: a merchant filling in a brand-new
+    # row may type its PO/Style/Colour, and the same merchant may not touch
+    # those cells afterwards. Advertising one set and enforcing the other is
+    # exactly what test_advertised_edit_rights_match_what_the_write_gate_accepts
+    # exists to catch.
+    editable = (
+        permissions.creatable_tracker_keys(user.role)
+        if mode == "create"
+        else permissions.editable_tracker_keys(user.role)
+    )
     return [
         TrackerColumnOut(
             **c,
@@ -200,13 +215,8 @@ def row_audit(
 def create_tracker_row(
     body: TrackerRowCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_tracker_view),
+    user: User = Depends(require_tracker_create),
 ):
-    if not permissions.can_edit_identity(user.role):
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            "Creating a tracker row sets its PO/Style/Colour identity; only CEO / admin may do this",
-        )
     f = body.fields
     match = tm.match_key(f.get("buyer_po"), f.get("style_no"), f.get("colour"))
     if db.query(TrackerRow).filter(TrackerRow.match_key == match).first():
@@ -214,7 +224,11 @@ def create_tracker_row(
     row = TrackerRow(match_key=match, raw={}, edited_keys=[], has_buyer=True, created_by=user.id)
     db.add(row)
     db.flush()  # obtain row.id for audit entries
-    apply_tracker_fields(db, row, f, user, action="manual")
+    # Creation, not editing: identity is settable here and nowhere else.
+    apply_tracker_fields(
+        db, row, f, user, action="manual",
+        allowed=permissions.creatable_tracker_keys(user.role),
+    )
     db.commit()
     db.refresh(row)
     return row

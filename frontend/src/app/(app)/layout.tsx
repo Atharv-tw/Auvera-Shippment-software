@@ -14,7 +14,8 @@ import {
   canViewTracker,
   canViewPos,
   canUpload,
-  canEditIdentity,
+  canCreateTrackerRow,
+  canViewAudit,
   canPaste,
   canViewCustomers,
   canViewVendors,
@@ -41,7 +42,7 @@ const NAV: { heading: string | null; items: NavItem[] }[] = [
     items: [
       { href: "/upload", label: "Upload Sheets", show: canUpload },
       { href: "/paste", label: "Paste PO Details", show: canPaste },
-      { href: "/manual", label: "Manual PO Line", show: canEditIdentity },
+      { href: "/manual", label: "Manual PO Line", show: canCreateTrackerRow },
     ],
   },
   {
@@ -51,12 +52,13 @@ const NAV: { heading: string | null; items: NavItem[] }[] = [
       { href: "/vendors", label: "Vendors", show: canViewVendors },
       { href: "/reports", label: "Reports", show: canViewReports },
       { href: "/users", label: "Users", show: canManageUsers },
+      { href: "/activity", label: "Sign-in Activity", show: canViewAudit },
     ],
   },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, logoutEverywhere } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -134,6 +136,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             className="w-full rounded-md px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
           >
             Sign out
+          </button>
+          {/* For the shared-desktop case: signing out here leaves any other
+              browser still signed in, which is the one thing people assume it
+              does not do. */}
+          <button
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Sign out of every browser and device you are signed in on?",
+                )
+              )
+                logoutEverywhere();
+            }}
+            className="w-full rounded-md px-3 py-2 text-left text-xs text-slate-400 hover:bg-slate-800 hover:text-white"
+          >
+            Sign out everywhere
           </button>
         </div>
       </aside>

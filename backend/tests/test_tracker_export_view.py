@@ -20,7 +20,7 @@ def _auth(token):
 
 def _admin_with_rows(client):
     r = client.post("/api/auth/register", json={
-        "email": "admin@example.com", "password": "secret123", "name": "admin", "role": "admin",
+        "email": "admin@example.com", "password": "secret123456", "name": "admin", "role": "admin",
     })
     token = r.json()["access_token"]
     path = SAMPLES / CUSTOMER_FILES[0]

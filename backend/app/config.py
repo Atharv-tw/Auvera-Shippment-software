@@ -14,12 +14,33 @@ class Settings(BaseSettings):
 
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 60 * 24
+    # Short, because a stolen access token can no longer be revoked any other
+    # way and the frontend now refreshes transparently.
+    jwt_expire_minutes: int = 15
+    refresh_expire_days: int = 14
+    # Accept pre-session tokens (no `sid` claim) issued before session control
+    # shipped. They are all expired within 24h of that deploy; unset then.
+    allow_sessionless_tokens: bool = True
+
+    # The /admin database browser signs its own cookie. Sharing jwt_secret
+    # means one leak opens both surfaces; empty falls back with a warning.
+    admin_session_secret: str = ""
+
+    # Empty = no restriction (local dev and the test suite). In production set
+    # ALLOWED_EMAIL_DOMAINS=auverastudio.com
+    allowed_email_domains: list[str] = []
+    # Read here as well as in seed.py: the domain gate always lets the
+    # configured admin in, so a typo cannot lock out the last administrator.
+    admin_email: str = "admin@example.com"
 
     cors_origins: list[str] = ["http://localhost:3000"]
 
     upload_dir: str = "uploads"
     max_upload_bytes: int = 20 * 1024 * 1024  # 20 MB
+
+    # Failed logins before the account is held shut, and for how long.
+    max_failed_logins: int = 5
+    lockout_minutes: int = 15
 
 
 @lru_cache
